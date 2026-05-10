@@ -100,6 +100,7 @@ function AssignRoles($principalId) {
 
 function TryAssignRoles($principalId, $servicePrincipal, $appRoleValue) {
 
+    $existingAssignments = Get-MgServicePrincipalAppRoleAssignment -ServicePrincipalId $principalId -All
     $sitesSelectedRole = $servicePrincipal.AppRoles | Where-Object {
         $_.Value -eq $appRoleValue -and $_.AllowedMemberTypes -contains "Application"
     }
