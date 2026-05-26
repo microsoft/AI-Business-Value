@@ -146,7 +146,7 @@ Once classified, each task is joined to the **Human Time Estimates** reference t
 | Meeting Prep | 15 | Forrester TEI 2024; HBR (Rogelberg 2019) | High |
 | Data Querying | 30 | Forrester TEI (2022); BCG (2021) | High |
 | Code Writing | 45 | GitHub/NBER (Peng et al. 2023) RCT | High |
-| Web Searching | 22 | McKinsey (2012); IDC (2018) | High |
+| Web Searching | 7 | Microsoft WTI (2023) ~8 min/sub-search controlled study; Kellar et al. (CHI 2007) 4.6 min fact-finding | High |
 | Enterprise Searching | 18 | IDC (2014); McKinsey (2012) | High |
 | Agent: IT & Service Desk | 20 | HDI (2023); MetricNet (2023) | High |
 | Agent: Sales & Customer | 35 | Salesforce (2023); Gartner (2022) | High |
@@ -282,6 +282,7 @@ This surfaces the **Augmented Skill** narrative — AI isn't just saving time, i
 | **Peng et al. (GitHub/NBER 2023)** | Developers using Copilot complete tasks 55.8% faster in a randomized controlled trial |
 | **Dell'Acqua et al. (BCG/Harvard 2023)** | Consultants with AI are 25% faster and produce 40% higher-quality work on complex tasks |
 | **McKinsey (2012, 2023)** | Knowledge workers spend 19% of their week searching for information; 28% managing email |
+| **Microsoft WTI (2023)** | Controlled study: multi-source search task takes ~24 min total (3 sub-searches ≈ 8 min each); Copilot users 27% faster; users 29% faster across search+write+summarise |
 | **IDC (2014, 2018)** | Workers spend 2.5 hours/day searching for information; enterprise search costs $14K/employee/year |
 | **Forrester TEI (2022, 2024)** | Microsoft 365 Copilot reduces meeting prep by 15 min, document review by 30%, search time by 50% |
 | **Microsoft Research (Iqbal & Horvitz 2007)** | Email interruptions cost 10 min per context switch; email triage baseline |
