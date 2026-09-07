@@ -13,7 +13,8 @@ straight into a Lakehouse.
 
 | Item | Purpose |
 |---|---|
-| `ValueLens - Fabric.pbit` | The Power BI template. A pure passthrough over the Lakehouse SQL endpoint — no transformations, so it refreshes fast (and can run **Direct Lake**). |
+| `ValueLens - Fabric.pbit` | Import-mode Power BI template using the Lakehouse SQL analytics endpoint (TDS/TCP 1433). |
+| `ValueLens - Fabric OneLake.pbit` | The same core report, importing Delta tables through OneLake over HTTPS/443. An alternative when the SQL endpoint's TCP connection is blocked. This is **not Direct Lake** mode. |
 | `notebooks/` | The base (*No Studio*) ingester notebooks — audit logs, licensed users, org data — **plus `Copilot_Audit_Log_Processor`**, which does the heavy audit-log shaping once in Spark. Optional: feedback, Agents 365, Cowork / Work IQ. See [`notebooks/README.md`](notebooks/README.md). |
 | `pipelines/`, `flows/`, `docs/` | Optional: a Fabric pipeline to run the core notebooks on a schedule, Power Automate flows for export-only sources, and reference docs. |
 | `archive/` | The previous (pre-2307) Power-Query template, kept for reference only. Not needed for a new deployment. |
@@ -24,18 +25,17 @@ straight into a Lakehouse.
 ## 📚 Dashboard pages
 
 <details>
-<summary>14 report pages — activation, adoption, value, maturity, governance, feedback &amp; appendices</summary>
+<summary>13 core report pages — activation, adoption, value, governance, feedback &amp; appendices</summary>
 
 | Page | Purpose |
 |---|---|
 | **◆ Activation** | Activation across teams — licensed vs unlicensed, active vs inactive |
 | **🎯 Readiness** | Ranks unlicensed / low-adoption users by upgrade‑priority score |
 | **📡 Adoption** | User counts, coverage %, licensed vs unlicensed reach |
-| **🪙 Credit Meter** | Copilot &amp; agent consumption — credits / messages over time |
 | **🔮 Activity** | Copilot and agent usage, tasks and behaviour mix |
 | **🚀 Value** | Hours saved, dollar‑equivalent assisted value, and the business case |
-| **🌱 Maturity** | Progression: Asking → Finding → Consuming → Producing → Delegating |
-| **🛡 Agent Health** | Agent resolution, abandonment, escalation and response time |
+| **🌱 Power Users** | Usage patterns, user progression and organisation comparisons |
+| **🛡 Agent Health** | Agent inventory, usage and governance; unavailable source telemetry remains blank |
 | **💬 Feedback** | Thumbs up/down sentiment and verbatim feedback themes |
 | **📈 Heatmap** | Activity heatmap across the reporting period |
 | **🏅 Leaderboard** | Top users, agents, and functions |
@@ -45,6 +45,18 @@ straight into a Lakehouse.
 
 </details>
 
+### Report filters and views
+
+The core reports use a right-hand filter column. Slicer headings use a consistent
+8 pt size, matching **Agent Name**. Each applicable page has one **Cowork vs Agent**
+dropdown; switching view bookmarks preserves its current selection. The dropdown
+uses the existing `Agent Filter` data: it does not invent Cowork activity when none
+is present in the source.
+
+Existing Licensed/Unlicensed bookmarks remain in place without a duplicate licence
+slicer on those pages. On the Value page, **Value Table** hides the work-type
+controls; **Time Saved** shows them again.
+
 ## Quick start
 
 The notebooks land the Delta tables; the template is a thin client over them. At a glance:
@@ -53,7 +65,7 @@ The notebooks land the Delta tables; the template is a thin client over them. At
 2. **Register an Entra app** with three Graph permissions.
 3. **Run the core ingester notebooks** (audit logs, licensed users, org data).
 4. **Run the curate notebook** — shapes the audit-log fact table once in Spark.
-5. **Connect the template** — set two parameters and **Load**.
+5. **Connect the template** — choose SQL or OneLake, enter connection and date parameters, then **Load**.
 6. **Schedule the refresh** to match your notebook cadence.
 
 <details>
@@ -124,33 +136,62 @@ Direct Lake possible.
 <details>
 <summary><b>5. Connect the template</b></summary>
 
-Open `ValueLens - Fabric.pbit` in Power BI Desktop and supply the parameters:
+Choose one core template in Power BI Desktop. Both read the same processed
+Lakehouse tables, including `copilot_interactions_curated`, `copilot_licensed_users`
+and `copilot_org_data`. Complete notebook ingestion and processing before refreshing
+the report.
+
+For `ValueLens - Fabric.pbit`:
 
 | Parameter | Required? | Value |
 |---|---|---|
 | **Fabric SQL Endpoint** | Yes | `<workspace-guid>.datawarehouse.fabric.microsoft.com` |
 | **Lakehouse Name** | Yes | Your Lakehouse name (e.g. `<your-lakehouse>`) |
-| `Enable_Dataverse` | Optional | `Include` to load agent tables (Studio deep-dive), else `Exclude` |
+
+For `ValueLens - Fabric OneLake.pbit`:
+
+| Parameter | Required? | Value |
+|---|---|---|
+| **Fabric Workspace ID** | Yes | The workspace GUID, not its display name |
+| **Lakehouse ID** | Yes | The Lakehouse item GUID, not its name or SQL endpoint ID |
+
+Both templates also require a date window:
+
+| Parameter | Required? | Value |
+|---|---|---|
+| **RangeStart** | Yes | Start timestamp, inclusive, covering the history to import |
+| **RangeEnd** | Yes | End timestamp, exclusive; use 1 September at midnight to include all of 31 August |
 | `Enable_ProductFeedback` | Optional | `Include` to load `user_feedback`, else `Exclude` |
 | `Enable_Agent365` | Optional | `Include` to load `agents_365`, else `Exclude` |
-| `Enable_CostConsumption` | Optional | `Include` to load `copilot_cost_consumption` (Cowork / Work IQ credits — MAC export), else `Exclude` |
-| `Enable_Consumption` | Optional | Leave `Exclude`. Transitional PPAC billing toggle — its notebook, flows and setup guide now ship with the **[Fabric + Copilot Studio](extended/Fabric%20+%20Copilot%20Studio/README.md)** build |
 
-Click **Load**, then **Publish** - ideally to a workspace on the **same Fabric capacity** so Direct
-Lake works without cross-capacity overhead.
+The release files have no prefilled tenant or test-Lakehouse identifiers. For OneLake,
+copy the two GUIDs from the Lakehouse's Fabric URL. Names containing spaces are not
+valid substitutes for these parameters. Sign in with an organisational account that
+can read the selected source, then click **Load**. A connection dialog can remain
+behind the main Desktop window; bring it forward if the report appears to be waiting.
+
+Both templates use **Import** mode. Confirm refresh and report filters before
+publishing, then configure the matching SQL or OneLake credentials in the service.
+The OneLake connection still requires network access to OneLake and appropriate
+permissions; HTTPS alone does not bypass tenant, proxy or data-access policy.
 </details>
 
 <details>
 <summary><b>6. Schedule the refresh</b></summary>
 
-In the Service: dataset **Settings -> Data source credentials** -> sign in to the SQL endpoint, then
+In the Service: semantic model **Settings -> Data source credentials** -> sign in to the selected SQL or OneLake source, then
 enable **Scheduled refresh** on a cadence that matches your notebook schedule.
 
 > **Incremental refresh is pre-configured.** The template ships with an Import-mode incremental-refresh
 > policy on the `Chat + Agent Interactions (Audit Logs)` fact table (rolling 12-month window, last
 > ~7 days re-queried each run), so the first refresh loads history once and every scheduled refresh
-> after that only appends recent days. It needs a **Premium / PPU / Fabric** capacity. To change the
+> after that refreshes the recent partitions. It needs a **Premium / PPU / Fabric** capacity. To change the
 > window - or to use **Direct Lake** instead - see [`docs/INCREMENTAL-REFRESH.md`](docs/INCREMENTAL-REFRESH.md).
+
+The OneLake variant retains the policy but reads Delta through Power Query rather
+than folding a T-SQL filter to the SQL endpoint. Do not assume equivalent refresh
+performance on large datasets; validate service refresh duration and capacity use
+for the intended history window.
 </details>
 
 ## Optional sources
