@@ -57,6 +57,29 @@ Existing Licensed/Unlicensed bookmarks remain in place without a duplicate licen
 slicer on those pages. On the Value page, **Value Table** hides the work-type
 controls; **Time Saved** shows them again.
 
+### Agent 365 ingestion and diagnostics
+
+The Registry Ingester handles the catalog API's nested `elementDetails` response.
+The CSV Lander matches header aliases without consuming the original columns and
+accepts `Last used` as an alias for `Last Activity Date`. The core templates retain
+the missing-column guards from the schema-resilience update.
+
+For volume discrepancies, run
+[`ValueLens_Data_Check.ipynb`](notebooks/ValueLens_Data_Check.ipynb) with the report's
+Lakehouse attached. Review licensed-user flags, audit date coverage and identity
+overlap before comparing report totals. The diagnostic is read-only; review its
+output before sharing it.
+
+This release retains the licensed-user notebook's configurable SKU-name matching
+from the schema-resilience update. It does **not** introduce directory/service-plan
+entitlement detection. The diagnostic reports what the imported snapshot contains;
+it does not prove that the snapshot includes every entitled user.
+
+Shared and Studio `_core` notebook copies are synchronized with the canonical
+notebooks. Run `scripts/sync-shared.ps1 -Check` and
+`python -B -m unittest discover -s tests -v` from the repository root to check
+distribution and core-template integrity.
+
 ## Quick start
 
 The notebooks land the Delta tables; the template is a thin client over them. At a glance:
