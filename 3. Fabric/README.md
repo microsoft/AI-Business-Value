@@ -70,15 +70,78 @@ Lakehouse attached. Review licensed-user flags, audit date coverage and identity
 overlap before comparing report totals. The diagnostic is read-only; review its
 output before sharing it.
 
-This release retains the licensed-user notebook's configurable SKU-name matching
-from the schema-resilience update. It does **not** introduce directory/service-plan
-entitlement detection. The diagnostic reports what the imported snapshot contains;
-it does not prove that the snapshot includes every entitled user.
+### Microsoft 365 E7 licence classification
+
+The licensed-user ingester previously matched only Copilot-named products, so an
+`Assigned Products` value of `Microsoft 365 E7` produced `HasCopilot = FALSE`.
+The flag becomes `Has_license` in `dbo.copilot_licensed_users`; the Audit Log
+Processor uses it for `Environment` and `License Status`.
+
+The default `COPILOT_SKU_PATTERNS` now includes these **exact product tokens**
+(leading `=` means exact, case-insensitive, whitespace-normalized matching):
+
+| Input identifier | Configured pattern |
+|---|---|
+| Product display name | `=MICROSOFT 365 E7` |
+| SKU part number | `=MICROSOFT_365_E7` |
+| SKU GUID | `=9a18296a-025f-4e37-9ffa-30bf8d1ce775` |
+
+Microsoft's [licensing reference and downloadable CSV](https://learn.microsoft.com/en-us/entra/identity/users/licensing-service-plan-reference)
+(updated August 19, 2026) verify these identifiers and the included
+`M365_COPILOT_APPS` service plan (`a62f8878-de10-42f3-b68f-6149a25ceb97`).
+The [E3/E5/E7 comparison](https://learn.microsoft.com/en-us/microsoft-365/copilot/microsoft-365-copilot-license-feature-overview)
+confirms E7 includes Copilot without an add-on. The service-plan ID itself is **not**
+an accepted product token. SKU identifiers are accepted if present in input, not
+claimed to be fields returned by the usage report.
+
+Existing Copilot substring aliases remain supported. E3/E5 alone, E70, arbitrary
+E7-like names and unverified E7 variants do not qualify. Trial, Studio, Security
+Copilot and standalone Copilot Chat products are excluded by default. Exclusions
+now apply **per product**, fixing the old ineffective exclusion check; a valid
+seat alongside an excluded product still qualifies. Tokens use `+`, comma or
+semicolon separators. Logs use the same classifier as the written flags.
+
+**Upgrade:** preserve your connection settings and intentional
+`COPILOT_SKU_PATTERNS` / `COPILOT_SKU_EXCLUDE` overrides. Add the exact E7 entries
+explicitly if adopting them into an existing custom list; defaults are not silently
+merged into overrides, and an empty pattern list still disables all matches.
+Review the new default exclusions rather than replacing a deliberate policy.
+Do not broaden matching to all `E7` or all `COPILOT` products.
+
+**Apply in Fabric:** import the updated ingester, run it to replace the licence
+snapshot, run `Copilot_Audit_Log_Processor` to update curated classifications,
+then refresh Power BI. Reprocess the affected historical rows and refresh their
+model partitions if using incremental refresh; refreshing only recent partitions
+can retain old classifications. Run `ValueLens_Data_Check` to review the stored
+flags and assigned-product combinations locally.
+
+**No PBIT rebuild is needed.** Both core Import templates (SQL and OneLake), plus
+the Studio template, read the existing flag via `Copilot Licensed` /
+`FabricTable("copilot_licensed_users")`; they do not classify `Assigned Products`.
+Local CSV and SharePoint templates likewise consume precomputed `Has license`
+from the Users rollup. Their Python processor normalizes an input licence flag,
+not SKU names: correct that supplied flag and regenerate the rollups before
+refreshing those reports. All five packaged templates, report layouts and
+bookmarks are unchanged.
+
+**Limits:** the [active-user report](https://learn.microsoft.com/en-us/graph/api/reportroot-getoffice365activeuserdetail)
+is a potentially delayed product-assignment snapshot. It does **not** expose
+per-user disabled or provisioning service-plan status, and this fix adds no
+directory/service-plan calls or permissions. A qualifying product is not proof
+of enabled service plans or payment. Exact usage-report labels for no-Teams/EEA
+E7 variants have not been verified; they are not guessed. Review unmatched labels
+against official licensing evidence before adding an exact alias. Neither the
+ingester nor the diagnostic proves the snapshot includes every entitled user.
 
 Shared and Studio `_core` notebook copies are synchronized with the canonical
 notebooks. Run `scripts/sync-shared.ps1 -Check` and
 `python -B -m unittest discover -s tests -v` from the repository root to check
 distribution and core-template integrity.
+
+The regression suite executes the notebook's real Python classifier and mocked
+report parsing locally, checks mirrored cells compile, and inspects packaged
+model/query contracts and existing report-integrity checks. It does not execute
+Spark/Delta writes, Power Query M, Desktop refresh or tenant entitlement queries.
 
 ## Quick start
 
