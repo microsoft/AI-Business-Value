@@ -1,7 +1,7 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/pipeline/definition/pipeline/1.0.0/schema.json",
   "properties": {
-    "description": "Orchestrates the Direct Ingester notebooks. Core: Audit log + Licensed Users always run; Org Data is optional via EnableOrgDataPull. Optional sources (Dataverse transcripts, credit consumption, product feedback, Agents 365) are opt-in via their Enable* parameters (default false). Export-only sources (consumption, feedback) require their CSVs to be landed first (manually or via the flows in flows/). See docs/PERMISSIONS.md for roles.",
+    "description": "Orchestrates ingestion followed by the Audit Log Processor, which writes copilot_interactions_curated before semantic-model refresh. Core: Audit log + Licensed Users always run; Org Data is optional via EnableOrgDataPull. The processor waits for audit log, licensed users and the Agents 365 conditional branch to succeed. Optional sources (Dataverse transcripts, credit consumption, product feedback, Agents 365) are opt-in via their Enable* parameters (default false). Export-only sources (consumption, feedback) require their CSVs to be landed first (manually or via the flows in flows/). Semantic-model refresh is scheduled separately after pipeline success. See docs/PERMISSIONS.md for roles.",
     "activities": [
       {
         "name": "Run_Audit_Log_Ingester",
@@ -35,6 +35,37 @@
         },
         "typeProperties": {
           "notebookId": "REPLACE_WITH_LICENSED_USERS_NOTEBOOK_ID",
+          "workspaceId": "REPLACE_WITH_WORKSPACE_ID",
+          "parameters": {}
+        }
+      },
+      {
+        "name": "Run_Audit_Log_Processor",
+        "description": "Transforms copilot_interactions_parsed with licensed-user and available Agents 365 data into copilot_interactions_curated. Waits for the outer Agents 365 condition so disabling that source does not skip processing. Refresh the semantic model only after pipeline success.",
+        "type": "TridentNotebook",
+        "dependsOn": [
+          {
+            "activity": "Run_Audit_Log_Ingester",
+            "dependencyConditions": ["Succeeded"]
+          },
+          {
+            "activity": "Run_Licensed_Users_Ingester",
+            "dependencyConditions": ["Succeeded"]
+          },
+          {
+            "activity": "Conditionally_Run_Agent365",
+            "dependencyConditions": ["Succeeded"]
+          }
+        ],
+        "policy": {
+          "timeout": "0.02:00:00",
+          "retry": 1,
+          "retryIntervalInSeconds": 60,
+          "secureOutput": false,
+          "secureInput": false
+        },
+        "typeProperties": {
+          "notebookId": "REPLACE_WITH_AUDIT_LOG_PROCESSOR_NOTEBOOK_ID",
           "workspaceId": "REPLACE_WITH_WORKSPACE_ID",
           "parameters": {}
         }
