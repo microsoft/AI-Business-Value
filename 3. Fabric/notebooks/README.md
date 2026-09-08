@@ -33,6 +33,20 @@ Tiers below match what the base (*No Studio*) dashboard actually needs:
 > `copilot_interactions_curated` table that the model reads with no transformation. Use
 > `WRITE_MODE = "overwrite"` for the first backfill, then `"merge"` for daily runs.
 
+### E7 licensing update
+
+`Copilot_Licensed_Users_Direct_Ingester` recognizes the verified Microsoft 365 E7
+product name and identifiers as exact tokens, alongside existing Copilot aliases.
+See [E7 mappings, override migration, evidence and limitations](../README.md#microsoft-365-e7-licence-classification).
+After updating, run the licensed-user ingester, then the audit-log processor,
+then refresh Power BI (including affected historical partitions if incremental).
+`ValueLens_Data_Check` shows stored flags alongside assigned-product combinations;
+it does not independently classify E7 or verify enabled service plans.
+
+The canonical notebooks here are synchronized to `extended/_shared/notebooks`
+and `extended/Fabric + Copilot Studio/notebooks/_core` using
+`scripts/sync-shared.ps1`. The processor is inherited, not mirrored.
+
 ## Recommended — Agent 365 governance
 
 Both notebooks feed the **Agents 365** page and write the **same** `dbo.agents_365` table, so
