@@ -1,5 +1,6 @@
 """Guard model-fix preservation and the notebook distribution that blocked PR 37."""
 import hashlib
+import importlib.util
 import json
 import unittest
 import zipfile
@@ -12,15 +13,16 @@ MIRRORS = (
     ROOT / "3. Fabric" / "extended" / "Fabric + Copilot Studio" / "notebooks" / "_core",
 )
 
-# Full model and pending-query bytes from the published schema-resilience PR.
+# SQL bytes remain pinned; OneLake pins the reviewed glossary correction while
+# checking the helper separately against its canonical source.
 SCHEMA_HASHES = {
     "ValueLens - Fabric.pbit": {
         "DataModelSchema": "54d6b739e72d9ec61a7c1dd23872cf868012020dabc24ed7340a5564101455aa",
         "UnappliedChanges": "77ac91786bb9cdc370bbb6c427fd86418bcd392a62ded03fdc4004f0e972f0fb",
     },
     "ValueLens - Fabric OneLake.pbit": {
-        "DataModelSchema": "ace897778f0608f1551b0f017dc35c54baf0ec76ca338746d9ff16151ed3e8e0",
-        "UnappliedChanges": "10cfb56a879907d25a6aaf67c29017e88f7c3b6a9c912c79abd8fb10c820895a",
+        "DataModelSchema": "58160bccbc84bec95477bbd5d086649a5e1bc32b2e8b8e135e0c3f8e45e2ef29",
+        "UnappliedChanges": "c17c69d874ed2924d9f26a884867d04892b79823552cd95936dcc3f94e46cd0e",
     },
 }
 
@@ -34,10 +36,24 @@ class ConsolidatedReleaseTests(unittest.TestCase):
         self.assertFalse((ROOT / "3. Fabric" / "ValueLens - Fabric (OneLake).pbit").exists())
 
     def test_previous_schema_fixes_preserved_without_model_rewrite(self):
+        spec = importlib.util.spec_from_file_location(
+            "onelake_packager", ROOT / "scripts" / "Update-OneLake-Template.py"
+        )
+        packager = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(packager)
         for name, expected in SCHEMA_HASHES.items():
             with zipfile.ZipFile(ROOT / "3. Fabric" / name) as archive:
                 for member, sha in expected.items():
-                    self.assertEqual(hashlib.sha256(archive.read(member)).hexdigest(), sha, (name, member))
+                    payload = archive.read(member)
+                    if "OneLake" in name:
+                        document = json.loads(payload.decode("utf-16-le"))
+                        actual = packager.unrelated_hash(document, member)
+                        record, field = packager.helper_record(document, member)
+                        canonical = packager.SOURCE.read_text(encoding="utf-8").split("\n")
+                        self.assertEqual(record[field], canonical, (name, member))
+                    else:
+                        actual = hashlib.sha256(payload).hexdigest()
+                    self.assertEqual(actual, sha, (name, member))
 
     def test_all_shared_notebooks_match_canonical_bytes(self):
         sources = [p for p in CORE.glob("*.ipynb") if p.name != "Copilot_Audit_Log_Processor.ipynb"]

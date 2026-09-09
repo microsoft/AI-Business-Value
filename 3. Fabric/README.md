@@ -238,8 +238,8 @@ For `ValueLens - Fabric OneLake.pbit`:
 
 | Parameter | Required? | Value |
 |---|---|---|
-| **Fabric Workspace ID** | Yes | The workspace GUID, not its display name |
-| **Lakehouse ID** | Yes | The Lakehouse item GUID, not its name or SQL endpoint ID |
+| **Fabric Workspace ID** | Yes | Clean lowercase workspace GUID, with no surrounding whitespace; not its display name |
+| **Lakehouse ID** | Yes | Clean lowercase Lakehouse item GUID, with no surrounding whitespace; not its name or SQL endpoint ID |
 
 Both templates also require a date window:
 
@@ -251,33 +251,110 @@ Both templates also require a date window:
 | `Enable_Agent365` | Optional | `Include` to load `agents_365`, else `Exclude` |
 
 The release files have no prefilled tenant or test-Lakehouse identifiers. For OneLake,
-copy the two GUIDs from the Lakehouse's Fabric URL. Names containing spaces are not
-valid substitutes for these parameters. Sign in with an organisational account that
+copy the two GUIDs from the Lakehouse's Fabric URL and enter them in the required format
+above. Preserve both parameters' neutral `null` defaults, names and lineage in the
+template. Names containing spaces are not valid substitutes. Sign in using
+**Organizational Account** credentials for an account that
 can read the selected source, then click **Load**. A connection dialog can remain
 behind the main Desktop window; bring it forward if the report appears to be waiting.
 
 Both templates use **Import** mode. Confirm refresh and report filters before
-publishing, then configure the matching SQL or OneLake credentials in the service.
-The OneLake connection still requires network access to OneLake and appropriate
-permissions; HTTPS alone does not bypass tenant, proxy or data-access policy.
+publishing with approval, then configure the matching SQL or OneLake credentials in
+the Service. OneLake uses HTTPS port **443**; this fix does not migrate to SQL or
+Direct Lake. HTTPS alone does not bypass tenant, proxy or data-access policy.
+
+**Stable OneLake source.** Use the canonical
+[`FabricTable` helper](../scripts/onelake/FabricTable.pq), replacing dynamic
+per-table/per-schema URL fallbacks. Its source must have this shape:
+
+```powerquery
+let
+    BasePath = "https://onelake.dfs.fabric.microsoft.com/" & #"Fabric Workspace ID" & "/" & #"Lakehouse ID" & "/Tables",
+    Source = AzureStorage.DataLake(BasePath, [HierarchicalNavigation = true]),
+    ReadTable = ...
+in
+    ReadTable
+```
+
+This is a source-shape illustration; paste the complete canonical helper, not the
+ellipsis. Keep the single `AzureStorage.DataLake` call **outside** `ReadTable`.
+Navigate that source to either a direct table directory or a schema-nested table
+directory, reject duplicate table-name matches (never select the first match), and
+read the selected directory with `DeltaLake.Table(Directory)`.
+
+Keep the tested source expression unchanged: the original helper combined
+parameter transformations and dynamic fallback paths and failed Service refresh.
+The replacement uses plain parameter composition and a single source outside the
+returned function. The test did not isolate which original construct alone caused
+the rejection. This is not a blanket restriction on parameters.
+Keep the **Tables-root URL**, not a workspace-root URL: the latter was discovered
+but credential validation returned HTTP 400.
+
+**Upgrade options:**
+
+1. **New PBIT:** open the updated OneLake template, re-enter parameters, reload data
+   and reapply customizations. Publish only after approval.
+2. **Existing PBIX:** replace `FabricTable` in Power Query's **Advanced Editor** with
+   the canonical helper, apply changes, then refresh in Desktop. Republish only
+   after approval.
+
+For template maintainers, from the release root run
+`python scripts\Update-OneLake-Template.py --check` to check synchronization.
+Running `python scripts\Update-OneLake-Template.py` without flags rebuilds only the
+authoritative OneLake PBIT, updating both model and pending copies.
+
+**Glossary sorting:** the OneLake template also fixes the Metric Glossary
+sort-by-column warning. Repeated metric labels now share one global `MetricOrder`
+(the minimum original order per case-insensitive label), including across pages.
+All 113 rows, descriptions, labels, `PageOrder` values and sort-by-column bindings
+are preserved; 13 order values across 11 conflicting labels changed. Replacing
+only `FabricTable` in an existing PBIX does not apply this separate glossary fix.
 </details>
 
 <details>
 <summary><b>6. Schedule the refresh</b></summary>
 
-In the Service: semantic model **Settings -> Data source credentials** -> sign in to the selected SQL or OneLake source, then
-enable **Scheduled refresh** on a cadence that matches your notebook schedule.
+In the Service, configure the semantic model's matching source connection and
+credentials. For OneLake, bind the matching **AzureDataLakeStorage** cloud source at
+`https://onelake.dfs.fabric.microsoft.com/<workspace-guid>/<lakehouse-guid>/Tables`
+and sign in using **Organizational Account** through the normal OAuth UI.
+REST credential setup accepts only an access token (approximately one hour), not
+durable scheduled-refresh credentials; it does not replace that UI sign-in.
+For SQL, sign in to the matching SQL source under **Settings -> Data source credentials**.
+Run an **on-demand Service refresh successfully before enabling Scheduled refresh**,
+then choose a cadence that matches your notebook schedule.
 
 > **Incremental refresh is pre-configured.** The template ships with an Import-mode incremental-refresh
 > policy on the `Chat + Agent Interactions (Audit Logs)` fact table (rolling 12-month window, last
-> ~7 days re-queried each run), so the first refresh loads history once and every scheduled refresh
-> after that refreshes the recent partitions. It needs a **Premium / PPU / Fabric** capacity. To change the
+> ~7 days re-queried each run), intended to load history initially and refresh recent
+> partitions thereafter. It needs a **Premium / PPU / Fabric** capacity. To change the
 > window - or to use **Direct Lake** instead - see [`docs/INCREMENTAL-REFRESH.md`](docs/INCREMENTAL-REFRESH.md).
 
 The OneLake variant retains the policy but reads Delta through Power Query rather
 than folding a T-SQL filter to the SQL endpoint. Do not assume equivalent refresh
 performance on large datasets; validate service refresh duration and capacity use
 for the intended history window.
+
+**Verification scope:** on **8 September 2026**, the full packaged semantic model
+(34 tables, 176 measures, relationships and configured refresh policy) completed an
+on-demand Power BI Service refresh against isolated synthetic fixtures, with A365
+and feedback enabled. Source row counts and licensing measures matched the fixture.
+An earlier reduced E7 fixture also refreshed successfully. These runs do not
+establish rendered report behavior, subsequent incremental-window behavior,
+large-tenant performance, or durable scheduled refresh. Complete the Organizational
+Account sign-in and confirm a scheduled run in your own environment.
+
+The corrected packaged glossary was also executed read-only on a local Analysis
+Services engine: all 113 rows matched, with no metric or page sort conflicts.
+That query validates the glossary expression, not a new Service refresh or UI test.
+
+The generic ADLS connector documentation warns about subfolder limitations.
+The OneLake Tables endpoint worked in this specific Service test; this is not a
+claim of universal subfolder support. Official references:
+[dynamic sources and refresh](https://learn.microsoft.com/power-bi/connect-data/refresh-data#refresh-and-dynamic-data-sources),
+[`AzureStorage.DataLake`](https://learn.microsoft.com/powerquery-m/azurestorage-datalake),
+[`DeltaLake.Table`](https://learn.microsoft.com/powerquery-m/deltalake-table),
+and [ADLS Gen2 connector limitations](https://learn.microsoft.com/power-query/connectors/data-lake-storage).
 </details>
 
 ## Optional sources
