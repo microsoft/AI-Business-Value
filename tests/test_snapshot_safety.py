@@ -140,6 +140,7 @@ class SnapshotSafetyTests(unittest.TestCase):
             "Copilot_Agent365_Registry_Ingester.ipynb",
             4,
             functions=("_validate_catalog_page",),
+            import_names=(),
         )
         with self.assertRaisesRegex(ValueError, "missing required 'value'"):
             page["_validate_catalog_page"]({"@odata.nextLink": "x"}, 1)
@@ -167,6 +168,7 @@ class SnapshotSafetyTests(unittest.TestCase):
             "Copilot_ProductFeedback_Ingester.ipynb",
             8,
             functions=("_assert_feedback_write_mode", "_decide_missing_feedback_action"),
+            import_names=(),
         )
         ns.update({
             "REPORT_GLOB": "*feedback*",

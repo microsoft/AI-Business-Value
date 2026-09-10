@@ -128,6 +128,21 @@ Run `ValueLens_Data_Check.ipynb` only as a **read-only diagnostic**:
 
 It does not mutate source tables and does not prove report parity by itself.
 
+An empty audit table, audit rows with no usable user identifiers, or no qualifying
+licensed UPNs means **identity overlap cannot yet be assessed**, not an identity
+mismatch or a passed validation. Check the source activity, ingestion window,
+ingester/processor outputs, and licensed-user snapshot first. A completed audit
+query can still yield no parsed prompts: the ingester intentionally retains only
+messages whose `isPrompt` value is true. Only investigate identity formats or
+tenant/environment selection as possible mismatch causes when both user sets are
+nonempty.
+
+Audit staging and checkpoints use `notebookutils.fs` for Lakehouse `Files/` and
+ABFSS paths rather than relying on the local Lakehouse mount. Pages are published
+from partial files only after pagination completes; manifests are read in full.
+Completed windows with missing staged files are fetched again. Do not run
+concurrent notebook instances against the same staging directory.
+
 **Note:** all model partitions are gated by an `Enable_*` parameter and fall back to an
 empty table when their source isn't present, so the template opens cleanly even if you
 haven't run optional notebooks yet.

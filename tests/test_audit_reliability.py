@@ -3,8 +3,10 @@
 import ast
 import json
 import shutil
+import tempfile
 import threading
 import unittest
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -14,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 NOTEBOOKS = ROOT / "3. Fabric" / "notebooks"
 INGESTER = NOTEBOOKS / "Copilot_Audit_Log_Direct_Ingester.ipynb"
 PROCESSOR = NOTEBOOKS / "Copilot_Audit_Log_Processor.ipynb"
-SCRATCH = ROOT / "tests" / "_audit_reliability_scratch"
+SCRATCH = Path(tempfile.gettempdir()) / ("valuelens-audit-tests-" + uuid.uuid4().hex)
 
 
 def cells(path):
@@ -69,6 +71,78 @@ class FakeResponse:
         return self._payload
 
 
+class FakeNotebookUtilsFS:
+    def __init__(self, root):
+        self.root = Path(root)
+        self.calls = []
+
+    def _normalize(self, path):
+        if not isinstance(path, str) or not path:
+            raise AssertionError(f"unexpected path: {path!r}")
+        return path.replace("\\", "/").rstrip("/")
+
+    def _resolve(self, path):
+        normalized = self._normalize(path)
+        if normalized.startswith("file:"):
+            return Path(normalized[5:])
+        if normalized == "Files" or normalized.startswith("Files/"):
+            relative = normalized[6:] if normalized.startswith("Files/") else ""
+            return self.root / "Files" / Path(relative)
+        if normalized.startswith("abfss://"):
+            return self.root / "_abfss" / normalized.replace("://", "__", 1).replace("/", "_")
+        raise AssertionError(f"unexpected notebookutils path: {path!r}")
+
+    def exists(self, path):
+        self.calls.append(("exists", path))
+        return self._resolve(path).exists()
+
+    def mkdirs(self, path):
+        self.calls.append(("mkdirs", path))
+        self._resolve(path).mkdir(parents=True, exist_ok=True)
+        return True
+
+    def ls(self, path):
+        self.calls.append(("ls", path))
+        base = self._resolve(path)
+        if not base.exists():
+            return []
+        prefix = self._normalize(path)
+        return [type("Entry", (), {"path": prefix + "/" + child.name})() for child in sorted(base.iterdir())]
+
+    def rm(self, path, recurse=False):
+        self.calls.append(("rm", path, recurse))
+        target = self._resolve(path)
+        if target.is_dir():
+            shutil.rmtree(target)
+        elif target.exists():
+            target.unlink()
+        return True
+
+    def cp(self, src, dst):
+        self.calls.append(("cp", src, dst))
+        source = self._resolve(src)
+        target = self._resolve(dst)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, target)
+        return True
+
+    def mv(self, src, dst, create_path=False, overwrite=False):
+        self.calls.append(("mv", src, dst, overwrite))
+        source = self._resolve(src)
+        target = self._resolve(dst)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if overwrite and target.exists():
+            if target.is_dir():
+                shutil.rmtree(target)
+            else:
+                target.unlink()
+        shutil.move(str(source), str(target))
+        return True
+
+    def head(self, *_args, **_kwargs):
+        raise AssertionError("head() should not be used for manifest reads")
+
+
 class AuditReliabilityTests(unittest.TestCase):
     maxDiff = None
 
@@ -101,7 +175,24 @@ class AuditReliabilityTests(unittest.TestCase):
         return exec_named_defs(
             INGESTER,
             10,
-            {"list_window_files", "purge_window_files", "list_active_stage_files", "manifest_succeeded", "should_refresh_window"},
+            {
+                "_normalize_stage_dir",
+                "_is_remote_stage_dir",
+                "_stage_path_join",
+                "_stage_basename",
+                "_list_stage_paths",
+                "_stage_exists",
+                "_stage_remove",
+                "_get_notebook_fs",
+                "_ensure_stage_dir",
+                "list_window_files",
+                "purge_window_files",
+                "list_active_stage_files",
+                "manifest_succeeded",
+                "should_refresh_window",
+                "window_stage_files_reusable",
+                "is_window_reusable",
+            },
             {"_as_utc_datetime": self.ingester_helpers()["_as_utc_datetime"]},
         )
 
@@ -132,6 +223,7 @@ class AuditReliabilityTests(unittest.TestCase):
         ns = {
             "STAGING_ABS": str(SCRATCH),
             "MANIFEST": str(SCRATCH / "_manifest.json"),
+            "LOCAL_STAGE_TMP_DIR": str(SCRATCH),
             "MANIFEST_LOCK": threading.RLock(),
             "manifest": {},
             "LOOKBACK_DAYS": 7,
@@ -153,6 +245,22 @@ class AuditReliabilityTests(unittest.TestCase):
             INGESTER,
             10,
             {
+                "_normalize_stage_dir",
+                "_is_remote_stage_dir",
+                "_stage_path_join",
+                "_stage_basename",
+                "_file_uri",
+                "_driver_temp_root",
+                "_new_local_temp_path",
+                "_get_notebook_fs",
+                "_ensure_stage_dir",
+                "_list_stage_paths",
+                "_stage_exists",
+                "_stage_remove",
+                "_write_stage_text",
+                "_write_stage_jsonl",
+                "_move_stage_file",
+                "_read_stage_json",
                 "list_window_files",
                 "purge_window_files",
                 "list_active_stage_files",
@@ -163,6 +271,8 @@ class AuditReliabilityTests(unittest.TestCase):
                 "_save_manifest",
                 "manifest_succeeded",
                 "should_refresh_window",
+                "window_stage_files_reusable",
+                "is_window_reusable",
                 "_read_manifest_entry",
                 "_mark_window",
                 "_row",
@@ -175,6 +285,22 @@ class AuditReliabilityTests(unittest.TestCase):
             ns,
         )
 
+    def remote_checkpoint_helpers(self, namespace=None):
+        remote_root = SCRATCH / "_remote"
+        fake_fs = FakeNotebookUtilsFS(remote_root)
+        ns = {
+            "STAGING_ABS": "Files/_audit_staging",
+            "MANIFEST": "Files/_audit_staging/_manifest.json",
+            "LOCAL_STAGE_TMP_DIR": str(SCRATCH / "_driver_tmp"),
+            "NOTEBOOK_FS": fake_fs,
+        }
+        if namespace:
+            ns.update(namespace)
+        helpers = self.checkpoint_helpers(ns)
+        helpers["_fake_fs"] = fake_fs
+        helpers["_remote_root"] = remote_root
+        return helpers
+
     def test_incremental_start_uses_trailing_overlap_but_still_catches_up_from_stale_watermark(self):
         ns = self.ingester_helpers()
         end_dt = datetime(2026, 9, 10, 8, 0, tzinfo=timezone.utc)
@@ -186,6 +312,17 @@ class AuditReliabilityTests(unittest.TestCase):
             ns["determine_incremental_start"](end_dt, end_dt - timedelta(days=30), 7),
             end_dt - timedelta(days=30),
         )
+
+    def test_manifest_updates_preserve_memory_when_mounted_reads_are_stale(self):
+        # Lakehouse mount reads can lag a successful atomic rename. A worker must
+        # not replace newer process-local checkpoints with that older snapshot.
+        ns = self.checkpoint_helpers()
+        ns["manifest"]["completed-window"] = {"status": "succeeded"}
+        ns["_load_manifest"] = lambda: {}
+        ns["_mark_window"]("next-window", "waiting")
+        self.assertEqual(ns["_read_manifest_entry"]("completed-window")["status"], "succeeded")
+        persisted = json.loads(Path(ns["MANIFEST"]).read_text(encoding="utf-8"))
+        self.assertEqual(persisted["completed-window"]["status"], "succeeded")
 
     def test_synthetic_record_key_uses_canonical_json_and_ignores_array_order(self):
         ns = self.ingester_helpers()
@@ -371,6 +508,90 @@ class AuditReliabilityTests(unittest.TestCase):
         self.assertFalse(partial.exists())
         self.assertTrue(old.exists())
 
+    def test_remote_stage_publication_uses_notebookutils_without_mount_paths(self):
+        ingester = self.ingester_helpers()
+        win = (
+            datetime(2026, 9, 10, 0, 0, tzinfo=timezone.utc),
+            datetime(2026, 9, 10, 8, 0, tzinfo=timezone.utc),
+        )
+        key = ingester["stable_window_key"](*win)
+        start_url = "https://graph.microsoft.com/beta/security/auditLog/queries/qid-remote/records?$top=999"
+        payload = {
+            "value": [
+                {
+                    "id": "record-1",
+                    "createdDateTime": "2026-09-10T08:00:00Z",
+                    "auditLogRecordType": "copilotInteraction",
+                    "operation": "View",
+                    "associatedAdminUnits": [],
+                    "associatedAdminUnitsNames": [],
+                    "auditData": {"CreationTime": "2026-09-10T08:00:00Z"},
+                }
+            ]
+        }
+        helpers = self.remote_checkpoint_helpers(
+            {
+                "create_query": lambda ws, we: "qid-remote",
+                "wait_for_query": lambda qid: {"status": "succeeded", "id": qid},
+                "_request": lambda method, url, **kwargs: FakeResponse(payload if url == start_url else {"value": []}),
+            }
+        )
+
+        self.assertEqual(helpers["_process"](win), (key, 1, "done"))
+        self.assertEqual(
+            helpers["list_window_files"](helpers["STAGING_ABS"], key),
+            [f"Files/_audit_staging/win_{key}_0000.jsonl"],
+        )
+        manifest = helpers["_load_manifest"]()
+        self.assertEqual(manifest[key]["status"], "succeeded")
+        self.assertEqual(manifest[key]["files"], [f"win_{key}_0000.jsonl"])
+        self.assertFalse((helpers["_remote_root"] / "Files" / "_audit_staging" / f"win_{key}_0000.jsonl.partial").exists())
+        self.assertTrue(all("/lakehouse/default" not in str(call) for call in helpers["_fake_fs"].calls))
+
+    def test_failed_remote_delete_cannot_publish_stale_pages_as_empty_success(self):
+        win = (
+            datetime(2026, 9, 10, 0, 0, tzinfo=timezone.utc),
+            datetime(2026, 9, 10, 8, 0, tzinfo=timezone.utc),
+        )
+        key = self.ingester_helpers()["stable_window_key"](*win)
+        helpers = self.remote_checkpoint_helpers({
+            "create_query": lambda ws, we: "qid-empty",
+            "wait_for_query": lambda qid: {"status": "succeeded", "id": qid},
+            "_request": lambda *args, **kwargs: FakeResponse({"value": []}),
+        })
+        fs = helpers["_fake_fs"]
+        stale_path = f"Files/_audit_staging/win_{key}_0000.jsonl"
+        stale = fs._resolve(stale_path)
+        stale.parent.mkdir(parents=True, exist_ok=True)
+        stale.write_text('{"id":"stale"}\n', encoding="utf-8")
+        original_rm = fs.rm
+        fs.rm = lambda path, recurse=False: False if path == stale_path else original_rm(path, recurse)
+
+        with self.assertRaisesRegex(RuntimeError, "Failed to remove staged file"):
+            helpers["_process"](win)
+        self.assertTrue(stale.exists())
+        self.assertEqual(helpers["_load_manifest"]()[key]["status"], "failed")
+        self.assertIn("Failed to remove staged file", helpers["_load_manifest"]()[key]["error"])
+
+    def test_remote_copy_and_move_false_results_are_fatal(self):
+        for operation in ("cp", "mv"):
+            with self.subTest(operation=operation):
+                helpers = self.remote_checkpoint_helpers()
+                setattr(helpers["_fake_fs"], operation, lambda *args: False)
+                with self.assertRaisesRegex(RuntimeError, "Failed to (copy|move)"):
+                    helpers["_mark_window"]("failed-publish", "succeeded", rows=0)
+                self.assertNotIn("failed-publish", helpers["manifest"])
+                self.assertEqual(helpers["_load_manifest"](), {})
+
+    def test_missing_published_files_force_refresh_instead_of_stale_skip(self):
+        helpers = self.stage_helpers()
+        cutoff = datetime(2026, 9, 3, tzinfo=timezone.utc)
+        old_end = datetime(2026, 8, 15, tzinfo=timezone.utc)
+        entry = {"status": "succeeded", "rows": 3, "pages": 1, "files": ["win_v2_old_0000.jsonl"]}
+
+        self.assertFalse(helpers["window_stage_files_reusable"](str(SCRATCH), "v2_old", entry))
+        self.assertFalse(helpers["is_window_reusable"](str(SCRATCH), "v2_old", old_end, entry, cutoff))
+
     def test_recent_completed_windows_requery_for_late_arrivals_but_old_completed_windows_skip(self):
         helpers = self.stage_helpers()
         cutoff = datetime(2026, 9, 3, tzinfo=timezone.utc)
@@ -480,6 +701,22 @@ class AuditReliabilityTests(unittest.TestCase):
         self.assertTrue(all(entry["status"] == "succeeded" for entry in persisted.values()))
         self.assertFalse(list(SCRATCH.glob(".*.tmp")))
 
+    def test_remote_manifest_roundtrip_avoids_truncated_head_reads(self):
+        helpers = self.remote_checkpoint_helpers()
+
+        for index in range(40):
+            helpers["_mark_window"](
+                f"v2_{index:03d}",
+                "succeeded",
+                rows=index,
+                pages=index % 3,
+                completed_at=f"2026-09-10T00:{index % 60:02d}:00+00:00",
+            )
+
+        manifest = helpers["_load_manifest"]()
+        self.assertEqual(len(manifest), 40)
+        self.assertEqual(manifest, helpers["manifest"])
+
     def test_drain_accepts_empty_page_but_rejects_malformed_payloads_and_off_graph_links(self):
         helpers = self.checkpoint_helpers({"_request": lambda *a, **k: FakeResponse({"value": []})})
         self.assertEqual(helpers["_drain"]("qid-empty", "empty"), (0, 0))
@@ -545,6 +782,44 @@ class AuditReliabilityTests(unittest.TestCase):
         self.assertEqual(failed_manifest[key]["status"], "failed")
         self.assertIn("pagination link cycle", failed_manifest[key]["error"])
         self.assertEqual(helpers["list_window_files"](str(SCRATCH), key, include_partial=True), [])
+
+    def test_remote_failures_cleanup_partial_pages_and_keep_manifest_authoritative(self):
+        ingester = self.ingester_helpers()
+        win = (
+            datetime(2026, 9, 10, 0, 0, tzinfo=timezone.utc),
+            datetime(2026, 9, 10, 8, 0, tzinfo=timezone.utc),
+        )
+        key = ingester["stable_window_key"](*win)
+        start_url = "https://graph.microsoft.com/beta/security/auditLog/queries/qid-bad/records?$top=999"
+        next_url = "https://graph.microsoft.com/beta/security/auditLog/queries/qid-bad/records?$skiptoken=1"
+        pages = {
+            start_url: FakeResponse(
+                {
+                    "value": [
+                        {
+                            "id": "record-1",
+                            "createdDateTime": "2026-09-10T08:00:00Z",
+                            "auditData": {"CreationTime": "2026-09-10T08:00:00Z"},
+                        }
+                    ],
+                    "@odata.nextLink": next_url,
+                }
+            ),
+            next_url: FakeResponse({}),
+        }
+        helpers = self.remote_checkpoint_helpers(
+            {
+                "create_query": lambda ws, we: "qid-bad",
+                "wait_for_query": lambda qid: {"status": "succeeded", "id": qid},
+                "_request": lambda method, url, **kwargs: pages[url],
+            }
+        )
+
+        with self.assertRaisesRegex(RuntimeError, "missing value list"):
+            helpers["_process"](win)
+        manifest = helpers["_load_manifest"]()
+        self.assertEqual(manifest[key]["status"], "failed")
+        self.assertEqual(helpers["list_window_files"](helpers["STAGING_ABS"], key, include_partial=True), [])
 
 
 if __name__ == "__main__":
