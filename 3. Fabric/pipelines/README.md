@@ -33,7 +33,7 @@ Scheduled orchestration for the Direct Ingester notebooks and the downstream Aud
 
 5. **Schedule it**: pipeline editor → **Schedule** at top → e.g. weekly Sunday 02:00. Activities run on the same cadence.
 
-6. **Refresh the semantic model only after pipeline success.** This template does not include a semantic-model refresh activity. If you add one, make it wait for the processor and all other enabled model sources to succeed; a fixed-time refresh alone does not guarantee ingestion and processing have finished.
+6. **Refresh the semantic model only after pipeline success.** This repository does **not** include a semantic-model refresh activity in the pipeline JSON. If you add one, make it wait for the processor and all other enabled model sources to succeed; a fixed-time refresh alone does not guarantee ingestion and processing have finished.
 
 **Existing deployments:** import the processor notebook, add `Run_Audit_Log_Processor` from the updated JSON (including its `dependsOn` entries), and replace its notebook/workspace placeholders with your IDs. Preserve your existing activity IDs and parameter settings. Updating this repository does not automatically update a manually imported Fabric pipeline.
 
@@ -56,9 +56,12 @@ Conditionally_Run_Agent365 --+
 
 The processor depends on the **outer** `Conditionally_Run_Agent365` activity, not its nested notebook.
 With `EnableAgent365 = false`, the empty false branch succeeds and processing can continue; with it
-enabled, processing waits for the lander to succeed. The processor can use an existing `agents_365`
-table when the pull is disabled, or handle its absence as documented in the notebook. Org Data and
-the other optional sources are not processor inputs, so they have no dependency edge to it.
+enabled, processing waits for the configured Agent 365 branch to succeed. In the **shipped pipeline
+JSON**, that branch runs the **CSV lander** (`Copilot_Agent365_Lander.ipynb`), not the registry
+ingester. If you prefer the app-only registry notebook, swap the referenced notebook ID and ensure
+the Graph permissions are in place. The processor can use an existing `agents_365` table when the
+pull is disabled, or handle its absence as documented in the notebook. Org Data and the other
+optional sources are not processor inputs, so they have no dependency edge to it.
 Total runtime now includes the downstream processing stage.
 
 ## Pipeline parameters
@@ -69,7 +72,7 @@ Total runtime now includes the downstream processing stage.
 | `EnableDataverse` | Boolean | `false` | When `true`, runs the Agent Transcript Parser (Copilot Studio transcripts from Dataverse). |
 | `EnableConsumption` | Boolean | `false` | When `true`, runs the Credit Consumption Ingester. **Export-only** — the CSVs must already be in `Files/credit_consumption/`. |
 | `EnableProductFeedback` | Boolean | `false` | When `true`, runs the Product Feedback Ingester. **Export-only** — the CSVs must already be in `Files/product_feedback/`. |
-| `EnableAgent365` | Boolean | `false` | When `true`, runs the Agents 365 Lander. |
+| `EnableAgent365` | Boolean | `false` | When `true`, runs the configured Agents 365 branch. In the shipped JSON this is the **CSV lander**. |
 
 When you trigger the pipeline manually, Fabric prompts for parameter values. When you schedule it (via the Schedule button), the schedule definition stores fixed parameter values — so you can have, e.g., a weekly schedule with the core sources on and any optional sources you've wired up enabled.
 
@@ -84,7 +87,7 @@ To switch one on: set its parameter to `true` **and** replace its notebook GUID 
 | `EnableDataverse` | `Conditionally_Run_Dataverse_Transcripts` | `Copilot_Agent_Transcript_Parser.ipynb` | `REPLACE_WITH_TRANSCRIPT_PARSER_NOTEBOOK_ID` | Live Dataverse pull. Needs the app reg as a Dataverse **Application User** (see [`../docs/PERMISSIONS.md`](../docs/PERMISSIONS.md)). |
 | `EnableConsumption` | `Conditionally_Run_Credit_Consumption` | `Copilot_Credit_Consumption_Ingester.ipynb` | `REPLACE_WITH_CREDIT_CONSUMPTION_NOTEBOOK_ID` | **PPAC credit build — now a [Fabric + Copilot Studio](../extended/Fabric%20+%20Copilot%20Studio/) add-on**, kept here transitionally. Land the 3 CSVs in `Files/credit_consumption/` first (see [`CREDIT-CONSUMPTION-SETUP.md`](../extended/Fabric%20+%20Copilot%20Studio/CREDIT-CONSUMPTION-SETUP.md)). |
 | `EnableProductFeedback` | `Conditionally_Run_Product_Feedback` | `Copilot_ProductFeedback_Ingester.ipynb` | `REPLACE_WITH_PRODUCT_FEEDBACK_NOTEBOOK_ID` | **Export-only.** Land the CSV in `Files/product_feedback/` first (manually or via a [flow](../flows/)). |
-| `EnableAgent365` | `Conditionally_Run_Agent365` | `Copilot_Agent365_Lander.ipynb` | `REPLACE_WITH_AGENT365_NOTEBOOK_ID` | Reads an exported agent registry CSV. |
+| `EnableAgent365` | `Conditionally_Run_Agent365` | `Copilot_Agent365_Lander.ipynb` | `REPLACE_WITH_AGENT365_NOTEBOOK_ID` | Shipped default. Reads an exported agent registry CSV from `Files/agent365/agents.csv`. Swap to `Copilot_Agent365_Registry_Ingester.ipynb` only if you deliberately adopt the Graph app-only path. |
 
 > **Export-only sources need their files landed before the pipeline runs.** Credit consumption and
 > product feedback have no API, so schedule their [Power Automate landing flow](../flows/) to run

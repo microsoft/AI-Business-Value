@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1900" height="980" viewBox="0 0 1900 980">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<rect x="20" y="20" width="1840" height="930" rx="18" ry="18" fill="#ffffff" stroke="#CBD5E0" stroke-width="2"/>
+<text x="950" y="52" text-anchor="middle" font-family="Arial, Segoe UI, sans-serif" font-size="26" fill="#000000">ValueLens Fabric architecture</text>
+<rect id="legend_source" x="60" y="72" width="32" height="20" rx="6" ry="6" fill="#DDEBF7" stroke="#2B6CB0" stroke-width="2"/>
+<text x="102" y="88" font-family="Arial, Segoe UI, sans-serif" font-size="16" fill="#000000">Source / export</text>
+<rect id="legend_process" x="290" y="72" width="32" height="20" rx="6" ry="6" fill="#E6F4EA" stroke="#2F855A" stroke-width="2"/>
+<text x="332" y="88" font-family="Arial, Segoe UI, sans-serif" font-size="16" fill="#000000">Ingest / process</text>
+<rect id="legend_delta" x="520" y="72" width="32" height="20" rx="6" ry="6" fill="#FFF4CE" stroke="#B7791F" stroke-width="2"/>
+<text x="562" y="88" font-family="Arial, Segoe UI, sans-serif" font-size="16" fill="#000000">Delta / snapshot</text>
+<rect id="legend_report" x="770" y="72" width="32" height="20" rx="6" ry="6" fill="#F3E8FF" stroke="#7E57C2" stroke-width="2"/>
+<text x="812" y="88" font-family="Arial, Segoe UI, sans-serif" font-size="16" fill="#000000">Power BI Import</text>
+<g id="graph_audit" data-node-id="graph_audit">
+<rect x="60" y="120" width="220" height="100" rx="14" ry="14" fill="#DDEBF7" stroke="#2B6CB0" stroke-width="2"/>
+<text x="170.0" y="160" text-anchor="middle" font-family="Arial, Segoe UI, sans-serif" font-size="18" fill="#000000">Graph audit</text>
+<text x="170.0" y="184" text-anchor="middle" font-family="Arial, Segoe UI, sans-serif" font-size="16" fill="#000000">(Microsoft Graph API)</text>
+</g>
+<g id="audit_ingester" data-node-id="audit_ingester">
+<rect x="320" y="120" width="220" height="100" rx="14" ry="14" fill="#E6F4EA" stroke="#2F855A" stroke-width="2"/>
+<text x="430.0" y="160" text-anchor="middle" font-family="Arial, Segoe UI, sans-serif" font-size="18" fill="#000000">Audit ingester</text>
+<text x="430.0" y="184" text-anchor="middle" font-family="Arial, Segoe UI, sans-serif" font-size="16" fill="#000000">(notebook)</text>
+</g>
+<g id="parsed_delta" data-node-id="parsed_delta">
+<rect x="580" y="120" width="220" height="100" rx="14" ry="14" fill="#FFF4CE" stroke="#B7791F" stroke-width="2"/>
+<text x="690.0" y="160" text-anchor="middle" font-family="Arial, Segoe UI, sans-serif" font-size="18" fill="#000000">Parsed Delta</text>
+<text x="690.0" y="184" text-anchor="middle" font-family="Arial, Segoe UI, sans-serif" font-size="13" fill="#000000">copilot_interactions_parsed</text>
+</g>
+<g id="audit_processor" data-node-id="audit_processor">
+<rect x="840" y="120" width="220" height="100" rx="14" ry="14" fill="#E6F4EA" stroke="#2F855A" stroke-width="2"/>
+<text x="950.0" y="160" text-anchor="middle" font-family="Arial, Segoe UI, sans-serif" font-size="18" fill="#000000">Audit processor</text>
+<text x="950.0" y="184" text-anchor="middle" font-family="Arial, Segoe UI, sans-serif" font-size="16" fill="#000000">(notebook)</text>
+</g>
+<g id="curated_delta" data-node-id="curated_delta">
+<rect x="1100" y="120" width="220" height="100" rx="14" ry="14" fill="#FFF4CE" stroke="#B7791F" stroke-width="2"/>
+<text x="1210.0" y="160" text-anchor="middle" font-family="Arial, Segoe UI, sans-serif" font-size="18" fill="#000000">Curated Delta</text>
+<text x="1210.0" y="184" text-anchor="middle" font-family="Arial, Segoe UI, sans-serif" font-size="13" fill="#000000">copilot_interactions_curated</text>
+</g>
+<g id="power_bi_import" data-node-id="power_bi_import">
+<rect x="1360" y="120" width="320" height="100" rx="14" ry="14" fill="#F3E8FF" stroke="#7E57C2" stroke-width="2"/>
+<text x="1520.0" y="160" text-anchor="middle" font-family="Arial, Segoe UI, sans-serif" font-size="18" fill="#000000">Power BI Import</text>
+<text x="1520.0" y="184" text-anchor="middle" font-family="Arial, Segoe UI, sans-serif" font-size="16" fill="#000000">(SQL or OneLake)</text>
+</g>
+<g id="licence_source_ingester" data-node-id="licence_source_ingester">
+<rect x="60" y="310" width="220" height="90" rx="14" ry="14" fill="#DDEBF7" stroke="#2B6CB0" stroke-width="2"/>
+<text x="170.0" y="350" text-anchor="middle" font-family="Arial, Segoe UI, sans-serif" font-size="18" fill="#000000">Licence report</text>
+<text x="170.0" y="374" text-anchor="middle" font-family="Arial, Segoe UI, sans-serif" font-size="16" fill="#000000">+ ingester</text>
+</g>
+<g id="licence_snapshot" data-node-id="licence_snapshot">
+<rect x="320" y="310" width="220" height="90" rx="14" ry="14" fill="#FFF4CE" stroke="#B7791F" stroke-width="2"/>
+<text x="430.0" y="350" text-anchor="middle" font-family="Arial, Segoe UI, sans-serif" font-size="18" fill="#000000">Licence snapshot</text>
+<text x="430.0" y="374" text-anchor="middle" font-family="Arial, Segoe UI, sans-serif" font-size="13" fill="#000000">copilot_licensed_users</text>
+</g>
+<g id="org_source_ingester" data-node-id="org_source_ingester">
+<rect x="60" y="440" width="220" height="90" rx="14" ry="14" fill="#DDEBF7" stroke="#2B6CB0" stroke-width="2"/>
+<text x="170.0" y="480" text-anchor="middle" font-family="Arial, Segoe UI, sans-serif" font-size="18" fill="#000000">Org directory</text>
+<text x="170.0" y="504" text-anchor="middle" font-family="Arial, Segoe UI, sans-serif" font-size="16" fill="#000000">+ ingester</text>
+</g>
+<g id="org_snapshot" data-node-id="org_snapshot">
+<rect x="320" y="440" width="220" height="90" rx="14" ry="14" fill="#FFF4CE" stroke="#B7791F" stroke-width="2"/>
+<text x="430.0" y="480" text-anchor="middle" font-family="Arial, Segoe UI, sans-serif" font-size="18" fill="#000000">Org snapshot</text>
+<text x="430.0" y="504" text-anchor="middle" font-family="Arial, Segoe UI, sans-serif" font-size="13" fill="#000000">copilot_org_data</text>
+</g>
+<g id="registry_source_ingester" data-node-id="registry_source_ingester">
+<rect x="60" y="570" width="220" height="90" rx="14" ry="14" fill="#DDEBF7" stroke="#2B6CB0" stroke-width="2"/>
+<text x="170.0" y="610" text-anchor="middle" font-family="Arial, Segoe UI, sans-serif" font-size="18" fill="#000000">Agent registry OR CSV</text>
+<text x="170.0" y="634" text-anchor="middle" font-family="Arial, Segoe UI, sans-serif" font-size="16" fill="#000000">+ ingester</text>
+</g>
+<g id="agents_365" data-node-id="agents_365">
+<rect x="320" y="570" width="220" height="90" rx="14" ry="14" fill="#FFF4CE" stroke="#B7791F" stroke-width="2"/>
+<text x="430.0" y="610" text-anchor="middle" font-family="Arial, Segoe UI, sans-serif" font-size="18" fill="#000000">agents_365</text>
+<text x="430.0" y="634" text-anchor="middle" font-family="Arial, Segoe UI, sans-serif" font-size="16" fill="#000000">(registry table)</text>
+</g>
+<g id="feedback_source_ingester" data-node-id="feedback_source_ingester">
+<rect x="60" y="700" width="220" height="90" rx="14" ry="14" fill="#DDEBF7" stroke="#2B6CB0" stroke-width="2"/>
+<text x="170.0" y="740" text-anchor="middle" font-family="Arial, Segoe UI, sans-serif" font-size="18" fill="#000000">Feedback CSV</text>
+<text x="170.0" y="764" text-anchor="middle" font-family="Arial, Segoe UI, sans-serif" font-size="16" fill="#000000">+ ingester</text>
+</g>
+<g id="user_feedback" data-node-id="user_feedback">
+<rect x="320" y="700" width="220" height="90" rx="14" ry="14" fill="#FFF4CE" stroke="#B7791F" stroke-width="2"/>
+<text x="430.0" y="740" text-anchor="middle" font-family="Arial, Segoe UI, sans-serif" font-size="18" fill="#000000">user_feedback</text>
+<text x="430.0" y="764" text-anchor="middle" font-family="Arial, Segoe UI, sans-serif" font-size="16" fill="#000000">(feedback table)</text>
+</g>
+<defs><marker id="arrowhead" markerWidth="10" markerHeight="8" refX="8" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L10,4 L0,8 z" fill="#4A5568"/></marker></defs>
+<polyline id="edge_graph_audit_to_audit_ingester" data-start="graph_audit" data-end="audit_ingester" points="280,170.0 320,170.0" fill="none" stroke="#4A5568" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrowhead)"/>
+<polyline id="edge_audit_ingester_to_parsed_delta" data-start="audit_ingester" data-end="parsed_delta" points="540,170.0 580,170.0" fill="none" stroke="#4A5568" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrowhead)"/>
+<polyline id="edge_parsed_delta_to_audit_processor" data-start="parsed_delta" data-end="audit_processor" points="800,170.0 840,170.0" fill="none" stroke="#4A5568" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrowhead)"/>
+<polyline id="edge_audit_processor_to_curated_delta" data-start="audit_processor" data-end="curated_delta" points="1060,170.0 1100,170.0" fill="none" stroke="#4A5568" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrowhead)"/>
+<polyline id="edge_curated_delta_to_power_bi_import" data-start="curated_delta" data-end="power_bi_import" points="1320,170.0 1360,170.0" fill="none" stroke="#4A5568" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrowhead)"/>
+<polyline id="edge_licence_source_ingester_to_licence_snapshot" data-start="licence_source_ingester" data-end="licence_snapshot" points="280,355.0 320,355.0" fill="none" stroke="#4A5568" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrowhead)"/>
+<polyline id="edge_licence_snapshot_to_audit_processor" data-start="licence_snapshot" data-end="audit_processor" points="540,355 760,355 760,250 950,250 950,220" fill="none" stroke="#4A5568" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrowhead)"/>
+<polyline id="edge_licence_snapshot_to_power_bi_import" data-start="licence_snapshot" data-end="power_bi_import" points="540,365 1280,365 1280,250 1520,250 1520,220" fill="none" stroke="#4A5568" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrowhead)"/>
+<polyline id="edge_org_source_ingester_to_org_snapshot" data-start="org_source_ingester" data-end="org_snapshot" points="280,485.0 320,485.0" fill="none" stroke="#4A5568" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrowhead)"/>
+<polyline id="edge_org_snapshot_to_power_bi_import" data-start="org_snapshot" data-end="power_bi_import" points="540,485 1310,485 1310,280 1545,280 1545,220" fill="none" stroke="#4A5568" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrowhead)"/>
+<polyline id="edge_registry_source_ingester_to_agents_365" data-start="registry_source_ingester" data-end="agents_365" points="280,615.0 320,615.0" fill="none" stroke="#4A5568" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrowhead)"/>
+<polyline id="edge_agents_365_to_audit_processor" data-start="agents_365" data-end="audit_processor" points="540,615 785,615 785,280 975,280 975,220" fill="none" stroke="#4A5568" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrowhead)"/>
+<polyline id="edge_agents_365_to_power_bi_import" data-start="agents_365" data-end="power_bi_import" points="540,625 1340,625 1340,310 1570,310 1570,220" fill="none" stroke="#4A5568" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrowhead)"/>
+<polyline id="edge_feedback_source_ingester_to_user_feedback" data-start="feedback_source_ingester" data-end="user_feedback" points="280,745.0 320,745.0" fill="none" stroke="#4A5568" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrowhead)"/>
+<polyline id="edge_user_feedback_to_power_bi_import" data-start="user_feedback" data-end="power_bi_import" points="540,745 1370,745 1370,340 1595,340 1595,220" fill="none" stroke="#4A5568" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrowhead)"/>
+<text x="950" y="875" text-anchor="middle" font-family="Arial, Segoe UI, sans-serif" font-size="16" fill="#000000">Pipeline: audit + licence + optional Agent365 lander, then processor; org runs separately in parallel.</text>
+<text x="950" y="899" text-anchor="middle" font-family="Arial, Segoe UI, sans-serif" font-size="18" fill="#000000">Configure Power BI refresh separately after pipeline success. Both connectors use Import.</text>
+<text x="950" y="923" text-anchor="middle" font-family="Arial, Segoe UI, sans-serif" font-size="18" fill="#000000">Both Power BI datasets use Import mode.</text>
+</svg>
