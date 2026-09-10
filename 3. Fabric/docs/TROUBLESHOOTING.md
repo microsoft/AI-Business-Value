@@ -97,5 +97,6 @@ But the "queries are blocked" dialog is **not** this — see the first rule of t
 
 ---
 
-See [`README.md`](../README.md) for the full setup, [`PERMISSIONS.md`](PERMISSIONS.md) for grants, and
-[`OPTIONAL-SOURCES.md`](OPTIONAL-SOURCES.md) for how absent sources stay green.
+See [`README.md`](../README.md) for the full setup, [`PERMISSIONS.md`](PERMISSIONS.md) for grants,
+[`OPTIONAL-SOURCES.md`](OPTIONAL-SOURCES.md) for how absent sources stay green, and the read-only
+checker pack under [`checker/`](checker/).

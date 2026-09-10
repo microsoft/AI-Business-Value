@@ -1,7 +1,7 @@
-# Ingestion: load strategy, scale & versioning
+# Ingestion: reviewed load strategy, scale & upgrades
 
-Guidance for running the Fabric path in production — how to load each source (overwrite vs
-append), what to expect at scale, and how to pin a stable build.
+Guidance for the current Fabric notebook set — especially the reviewed snapshot-safety
+and merge-key changes.
 
 This is the base **No-Studio** build: three core sources — **audit logs**, **licensed users**, and
 **org data**. Optional add-ons (Cowork / Work IQ consumption, product feedback, Agents 365) follow the
@@ -12,23 +12,42 @@ separate [Fabric + Copilot Studio](../extended/Fabric%20+%20Copilot%20Studio/) b
 
 ## 1. Load strategy per source
 
-Each ingester supports `WRITE_MODE` = `overwrite` | `append` | `merge`. For the core sources:
+The current core path is **not** "append everything forever". It now mixes
+**overwrite snapshots** with **stable-key merge** where appropriate.
 
-| Source / table | Recommended | Why |
+| Source / table | Recommended mode | Current reviewed behaviour |
 |---|---|---|
-| **Audit log** → `copilot_interactions_parsed` (`Copilot_Audit_Log_Direct_Ingester`) | **`append`** day-by-day; **`overwrite`** for a fresh snapshot | Audit records are immutable events keyed by `RecordId`. Append each day's slice. For exactly-once on re-runs, dedupe on `RecordId` downstream. |
-| **Licensed users** → `copilot_licensed_users` (`Copilot_Licensed_Users_Direct_Ingester`) | **`overwrite`** | Current-state snapshot of who's licensed — replace it each run. |
-| **Org / people** → `copilot_org_data` (`Copilot_Org_Data_Direct_Ingester`) | **`overwrite`** | Current-state snapshot of users — replace it each run. |
+| **Audit log** → `copilot_interactions_parsed` (`Copilot_Audit_Log_Direct_Ingester`) | **Backfill = overwrite**; **incremental = merge** | Incremental re-queries the trailing `LOOKBACK_DAYS = 7` and relies on stable row keys (`Id`, `Source_RecordKey`, `Source_MessageKey`, `Source_ResourceKey`). |
+| **Licensed users** → `copilot_licensed_users` (`Copilot_Licensed_Users_Direct_Ingester`) | **overwrite** | Snapshot source. Rejects empty, malformed and conflicting duplicate rows before replacement. |
+| **Org / people** → `copilot_org_data` (`Copilot_Org_Data_Direct_Ingester`) | **overwrite** | Snapshot source. Rejects malformed pages, conflicting duplicates and manager cycles before replacement. |
+| **Agent 365 registry** → `agents_365` (`Copilot_Agent365_Registry_Ingester`) | **overwrite** | Snapshot source. Rejects rows with missing `Title ID` and conflicting duplicates. |
+| **Agent 365 CSV lander** → `agents_365` (`Copilot_Agent365_Lander`) | **overwrite** | Snapshot fallback. Use only as an alternative source for the same table. |
+| **Product feedback** → `user_feedback` (`Copilot_ProductFeedback_Ingester`) | **overwrite only** | `append` is explicitly rejected; missing exports preserve the existing snapshot unless you allow an empty first placeholder. |
 
-> **Rule of thumb:** the audit log is an *event stream* → **append**; the snapshot sources (licensed
-> users, org, and the optional Agents 365 / consumption / feedback exports) → **overwrite**.
+### Parsed audit keys and deliberate upgrade path
+
+Older parsed tables may be missing the reviewed stable key columns:
+
+- `Id`
+- `Source_RecordKey`
+- `Source_MessageKey`
+- `Source_ResourceKey`
+
+If so, incremental runs fail clearly and require a **deliberate fresh backfill**.
+
+Important implications:
+
+1. **Validate in a separate output/staging target first** if you want to compare old vs new parsed output.
+2. A backfill to the **same** parsed table **overwrites it in place**.
+3. You cannot reconstruct perfect historical deduplication for legacy rows that never had the new identifiers.
 
 ### Backfilling history
-For "all data since 1 Jan 2026", loop the date window in the **audit ingester**, not the dashboard:
-set `LOOKBACK_DAYS` per run and schedule daily with `WRITE_MODE='append'`. The notebook already chunks
-each run into `CHUNK_HOURS` windows and **retries transient 5xx/429** (see §3), so a long backfill
-survives Purview throttling. (Graph caps each audit query to a rolling 7-day window, so history is
-built up day-by-day rather than in one shot.)
+For "all data since 1 Jan 2026", use `MODE='backfill'` in the **audit ingester**, not the dashboard.
+The notebook already chunks each run into `CHUNK_HOURS` windows and retries transient 5xx/429 failures,
+so a long backfill survives Purview throttling. Graph still caps each audit query to a rolling 7-day
+window, so history is assembled as bounded windows rather than one giant pull.
+
+After a parsed-table backfill, rerun **`Copilot_Audit_Log_Processor`** before refreshing Power BI.
 
 ---
 
@@ -38,7 +57,7 @@ The Fabric path is built so the PBIT reads **already-shaped Delta tables** and d
 and measures — the heavy parsing (audit `AuditData` flatten, agent-identity resolution) happens in the
 Spark notebooks. If a refresh is taking minutes:
 
-1. **Prefer incremental refresh or Direct Lake** over re-importing everything each run — see
+1. **Prefer incremental refresh** over re-importing everything each run — see
    [`INCREMENTAL-REFRESH.md`](INCREMENTAL-REFRESH.md).
 2. **No per-row M expansion.** Don't add record/JSON parsing in the PBIT on the Fabric path — that work
    belongs in the ingester notebook, so the table you connect to is already flat.
@@ -52,15 +71,23 @@ Spark notebooks. If a refresh is taking minutes:
 
 - **Audit ingester** uses a shared `requests.Session` with `urllib3` **Retry** (`429/500/502/503/504`,
   exponential backoff, honours `Retry-After`) plus an outer retry loop, so transient **504 Gateway
-  Timeouts** during poll/fetch no longer abort the run. The lookback is split into `CHUNK_HOURS`
-  windows with a configurable `MAX_WAIT_MIN_PER_QUERY`, and records stream to Lakehouse Files (bounded
-  driver memory).
+  Timeouts** during poll/fetch no longer abort the run. The requery / backfill window is split into
+  `CHUNK_HOURS` slices with a configurable `MAX_WAIT_MIN_PER_QUERY`, and records stream to Lakehouse
+  Files (bounded driver memory).
 - **Consumption dates** parse US-format `Usage_Date` with explicit `"en-US"` culture, so they don't
   fail on non-US machine/region locales.
+- **Product feedback** now treats the feed as a strict snapshot source: safe overwrite, no append.
+
+## 4. Licensed-user classifier note
+
+The reviewed licensed-user ingester recognizes the exact Microsoft 365 E7 tokens added in the local
+notebook changes. Keep deliberate custom `COPILOT_SKU_PATTERNS` / `COPILOT_SKU_EXCLUDE` overrides
+deliberate — defaults are not silently merged into an override, and broad "match anything containing
+E7" rules are not recommended.
 
 ---
 
-## 4. Production: stable build & upgrade path
+## 5. Production: stable build & upgrade path
 
 **Pin a known-good commit.** Build your automation against a specific Git **tag / commit SHA** of this
 repo rather than tracking `main`, so an upstream change can't break a running pipeline:

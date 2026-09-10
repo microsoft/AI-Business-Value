@@ -65,7 +65,7 @@ and a step up in automation.
 |---|---|---|
 | **[1. Local CSV](1.%20Local%20CSV/)** · *start here* 🧪 | You want to **see it working now** — or run a one-off look at your own numbers. | **Sample data included.** Open the template, point it at three CSVs. No tenant, no exports, no scripts. Then swap in your own export when ready. |
 | **[2. SharePoint](2.%20SharePoint/)** · *scheduled, Pro* | You want it **refreshing on its own** on **Power BI Pro** — no Fabric or Premium. | A scheduled script extracts, rolls up and uploads to SharePoint; Power BI refreshes on a timer. |
-| **[3. Fabric](3.%20Fabric/)** · *scale · recommended* | You have **Fabric capacity** (or Premium / PPU), or any Spark + SQL stack. | Notebooks shape the data into a Lakehouse — best performance, plus the optional billing & feedback pages. Also runs on Databricks, Synapse or Azure SQL. |
+| **[3. Fabric](3.%20Fabric/)** · *scale · recommended* | You have **Fabric capacity** (or Premium / PPU) and want the reviewed notebook + Lakehouse path. | Two **Import-mode** templates over the same Lakehouse outputs (SQL analytics endpoint or OneLake), plus optional feedback / Agent 365 / consumption sources and the separate Studio add-on. |
 
 **Not sure?** **Start with path 1.** It takes minutes and tells you whether the numbers are worth
 automating — *before* you set up any automation. Move to 2 or 3 when you want it hands-off.
@@ -118,15 +118,17 @@ baseline** → summed to **Hours Saved** → × hourly rate = **Assisted Value**
 
 ## 🔌 Data sources
 
+Availability varies by deployment path. Use the path README for the maintained source list and exact setup.
+
 | Source | Required? | Where it comes from |
 |---|---|---|
 | Copilot interactions (audit logs) | ✅ Core | Microsoft Purview |
 | Licensed users | ✅ Core | Microsoft 365 Admin Center |
 | Org data (department / function) | ✅ Core | Microsoft Entra |
 | Agents 365 | ⬜ Optional | Agent 365 export (Fabric path) |
-| Cowork / Work IQ consumption | ⬜ Optional | Microsoft 365 Admin Center export → see [`3. Fabric/flows/COST-CONSUMPTION.md`](3.%20Fabric/flows/COST-CONSUMPTION.md) |
-| Credit consumption (billing) | ⬜ Optional | Power Platform Admin Center export → see [`3. Fabric/extended/Fabric + Copilot Studio/CREDIT-CONSUMPTION-SETUP.md`](3.%20Fabric/extended/Fabric%20+%20Copilot%20Studio/CREDIT-CONSUMPTION-SETUP.md) *(Studio add-on)* |
-| Product feedback | ⬜ Optional | M365 Admin Center → Health → Product Feedback export |
+| Cowork / Work IQ consumption | ⬜ Optional | Microsoft 365 Admin Center export → see the path README / [`3. Fabric/flows/COST-CONSUMPTION.md`](3.%20Fabric/flows/COST-CONSUMPTION.md) |
+| Credit consumption (billing) | ⬜ Optional | Power Platform Admin Center export → Fabric + Copilot Studio add-on only |
+| Product feedback | ⬜ Optional | M365 Admin Center → Health → Product Feedback export (Fabric path optional source) |
 | Copilot Studio agent transcripts | ⬜ Optional | Dataverse `ConversationTranscript` table — use the [Dataverse companion repo ↗](https://github.com/Keithland89/Copilot-Studio-Agent-Analytics) |
 
 Optional sources are gated by `Enable_*` toggles — the dashboard works fine without them. The exact
@@ -136,42 +138,16 @@ export + connect steps live in the path README you choose above.
 
 ## 📚 Dashboard pages
 
-<details>
-<summary>14 core pages (13 on SharePoint) + 3 Copilot Studio add-on pages</summary>
+Maintained page lists live in the path READMEs:
 
-Page names below match the **actual report tabs**. The ✓ columns show which deployment path ships
-each page — see the path README for that build's own list.
+- [`1. Local CSV/README.md`](1.%20Local%20CSV/README.md)
+- [`2. SharePoint/README.md`](2.%20SharePoint/README.md)
+- [`3. Fabric/README.md`](3.%20Fabric/README.md)
+- [`3. Fabric/extended/Fabric + Copilot Studio/README.md`](3.%20Fabric/extended/Fabric%20+%20Copilot%20Studio/README.md)
 
-| Page | SharePoint | Fabric | Purpose |
-|---|:--:|:--:|---|
-| **◆ Activation** | ✓ | ✓ | Activation across teams — licensed vs unlicensed, active vs inactive |
-| **🎯 Readiness** | ✓ | ✓ | Ranks unlicensed / low-adoption users by upgrade‑priority score |
-| **📡 Adoption** | ✓ | ✓ | User counts, coverage %, licensed vs unlicensed reach |
-| **🪙 Consumption** ¹ | ✓ | ✓ | Copilot &amp; agent consumption — credits / messages over time |
-| **🔮 Activity** | ✓ | ✓ | Copilot and agent usage, tasks and behaviour mix |
-| **🚀 Value** | ✓ | ✓ | Hours saved, dollar‑equivalent assisted value, and the business case |
-| **🌱 Maturity** | ✓ | ✓ | Progression: Asking → Finding → Consuming → Producing → Delegating |
-| **🛡 Agent Health** | ✓ | ✓ | Agent resolution, abandonment, escalation and response time |
-| **💬 Feedback** | — | ✓ | Thumbs up/down sentiment and verbatim feedback themes |
-| **📈 Heatmap** | ✓ | ✓ | Activity heatmap across the reporting period |
-| **🏅 Leaderboard** | ✓ | ✓ | Top users, agents, and functions |
-| **📘 Appendix: Key Concepts** | ✓ | ✓ | Methodology and key‑concept explainers |
-| **🧬 Appendix: Signal Table** | ✓ | ✓ | Trace raw signals through to value (audit trail) |
-| **📘 Appendix: Glossary** | ✓ | ✓ | Metric definitions and research sources |
-
-¹ Labelled **🪙 Consumption** in the SharePoint template and **🪙 Credit Meter** in the Fabric
-template — same page, different tab name.
-
-**Copilot Studio add-on** — three extra pages in the
-[Fabric + Copilot Studio](3.%20Fabric/extended/Fabric%20+%20Copilot%20Studio/) build:
-
-| Page | Purpose |
-|---|---|
-| **Copilot Studio: Credits Consumed** | Agent credit consumption and billing breakdown |
-| **Copilot Studio: Agent Evaluation** | Agent resolution, abandonment, escalation and response time |
-| **Copilot Studio: Topic Analysis** | Most‑asked topics, resolution and abandonment by agent |
-
-</details>
+Across the maintained paths, the common core centres on activation, readiness, adoption,
+activity, value, leaderboard, heatmap and appendices. Fabric-specific optional additions
+such as feedback and Studio detail are documented in the Fabric READMEs above.
 
 ---
 

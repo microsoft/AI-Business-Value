@@ -1,502 +1,189 @@
 # Fabric / Lakehouse deployment (recommended)
 
-Notebooks pull your Copilot data from Microsoft Graph and write Delta tables
-straight into a Lakehouse. 
+This path ships **two Import-mode Power BI templates** over the same Lakehouse outputs:
+
+- **`ValueLens - Fabric.pbit`** → imports through the **SQL analytics endpoint**
+- **`ValueLens - Fabric OneLake.pbit`** → imports the same Delta tables through **OneLake**
+
+Both are **Import**, not Direct Lake.
 
 ![Fabric architecture](ValueLens_Fabric_Architecture.png)
 
-> **Not only Fabric.** The same notebooks and template also run on **Azure Databricks**, **Synapse
-> Spark**, **Azure SQL**, or a **Fabric Warehouse** with no real changes. See
-> [Works beyond Fabric](#works-beyond-fabric).
+**Assets:** [`ValueLens_Fabric_Architecture.excalidraw`](ValueLens_Fabric_Architecture.excalidraw) ·
+[`ValueLens_Fabric_Architecture.svg`](ValueLens_Fabric_Architecture.svg) ·
+[`ValueLens_Fabric_Architecture.png`](ValueLens_Fabric_Architecture.png)
+
+**Jump to:** [Quick start](#quick-start) · [Run order](#run-order-reviewed) ·
+[Checker pack](#checker-pack-read-only-tsql) · [Reviewed notebook changes](#reviewed-notebook-changes) ·
+[Optional sources](#optional-sources) · [Troubleshooting](#troubleshooting) · [Reference](#reference)
 
 ## What's here
 
 | Item | Purpose |
 |---|---|
-| `ValueLens - Fabric.pbit` | Import-mode Power BI template using the Lakehouse SQL analytics endpoint (TDS/TCP 1433). |
-| `ValueLens - Fabric OneLake.pbit` | The same core report, importing Delta tables through OneLake over HTTPS/443. An alternative when the SQL endpoint's TCP connection is blocked. This is **not Direct Lake** mode. |
-| `notebooks/` | The base (*No Studio*) ingester notebooks — audit logs, licensed users, org data — **plus `Copilot_Audit_Log_Processor`**, which does the heavy audit-log shaping once in Spark. Optional: feedback, Agents 365, Cowork / Work IQ. See [`notebooks/README.md`](notebooks/README.md). |
-| `pipelines/`, `flows/`, `docs/` | Optional: a Fabric pipeline to run the core notebooks on a schedule, Power Automate flows for export-only sources, and reference docs. |
-| `archive/` | The previous (pre-2307) Power-Query template, kept for reference only. Not needed for a new deployment. |
-
-> Copilot Studio agent-transcript analytics is a **separate optional add-on** — see
-> [Optional sources](#optional-sources). Everything in this Quick start is the core, Studio-free path.
-
-## 📚 Dashboard pages
-
-<details>
-<summary>13 core report pages — activation, adoption, value, governance, feedback &amp; appendices</summary>
-
-| Page | Purpose |
-|---|---|
-| **◆ Activation** | Activation across teams — licensed vs unlicensed, active vs inactive |
-| **🎯 Readiness** | Ranks unlicensed / low-adoption users by upgrade‑priority score |
-| **📡 Adoption** | User counts, coverage %, licensed vs unlicensed reach |
-| **🔮 Activity** | Copilot and agent usage, tasks and behaviour mix |
-| **🚀 Value** | Hours saved, dollar‑equivalent assisted value, and the business case |
-| **🌱 Power Users** | Usage patterns, user progression and organisation comparisons |
-| **🛡 Agent Health** | Agent inventory, usage and governance; unavailable source telemetry remains blank |
-| **💬 Feedback** | Thumbs up/down sentiment and verbatim feedback themes |
-| **📈 Heatmap** | Activity heatmap across the reporting period |
-| **🏅 Leaderboard** | Top users, agents, and functions |
-| **📘 Appendix: Key Concepts** | Methodology and key‑concept explainers |
-| **🧬 Appendix: Signal - Impact Table** | Trace raw signals through to value (audit trail) |
-| **📘 Appendix: Glossary** | Metric definitions and research sources |
-
-</details>
-
-### Report filters and views
-
-The core reports use a right-hand filter column. Slicer headings use a consistent
-8 pt size, matching **Agent Name**. Each applicable page has one **Cowork vs Agent**
-dropdown; switching view bookmarks preserves its current selection. The dropdown
-uses the existing `Agent Filter` data: it does not invent Cowork activity when none
-is present in the source.
-
-Existing Licensed/Unlicensed bookmarks remain in place without a duplicate licence
-slicer on those pages. On the Value page, **Value Table** hides the work-type
-controls; **Time Saved** shows them again.
-
-### Agent 365 ingestion and diagnostics
-
-The Registry Ingester handles the catalog API's nested `elementDetails` response.
-The CSV Lander matches header aliases without consuming the original columns and
-accepts `Last used` as an alias for `Last Activity Date`. The core templates retain
-the missing-column guards from the schema-resilience update.
-
-For volume discrepancies, run
-[`ValueLens_Data_Check.ipynb`](notebooks/ValueLens_Data_Check.ipynb) with the report's
-Lakehouse attached. Review licensed-user flags, audit date coverage and identity
-overlap before comparing report totals. The diagnostic is read-only; review its
-output before sharing it.
-
-### Microsoft 365 E7 licence classification
-
-The licensed-user ingester previously matched only Copilot-named products, so an
-`Assigned Products` value of `Microsoft 365 E7` produced `HasCopilot = FALSE`.
-The flag becomes `Has_license` in `dbo.copilot_licensed_users`; the Audit Log
-Processor uses it for `Environment` and `License Status`.
-
-The default `COPILOT_SKU_PATTERNS` now includes these **exact product tokens**
-(leading `=` means exact, case-insensitive, whitespace-normalized matching):
-
-| Input identifier | Configured pattern |
-|---|---|
-| Product display name | `=MICROSOFT 365 E7` |
-| SKU part number | `=MICROSOFT_365_E7` |
-| SKU GUID | `=9a18296a-025f-4e37-9ffa-30bf8d1ce775` |
-
-Microsoft's [licensing reference and downloadable CSV](https://learn.microsoft.com/en-us/entra/identity/users/licensing-service-plan-reference)
-(updated August 19, 2026) verify these identifiers and the included
-`M365_COPILOT_APPS` service plan (`a62f8878-de10-42f3-b68f-6149a25ceb97`).
-The [E3/E5/E7 comparison](https://learn.microsoft.com/en-us/microsoft-365/copilot/microsoft-365-copilot-license-feature-overview)
-confirms E7 includes Copilot without an add-on. The service-plan ID itself is **not**
-an accepted product token. SKU identifiers are accepted if present in input, not
-claimed to be fields returned by the usage report.
-
-Existing Copilot substring aliases remain supported. E3/E5 alone, E70, arbitrary
-E7-like names and unverified E7 variants do not qualify. Trial, Studio, Security
-Copilot and standalone Copilot Chat products are excluded by default. Exclusions
-now apply **per product**, fixing the old ineffective exclusion check; a valid
-seat alongside an excluded product still qualifies. Tokens use `+`, comma or
-semicolon separators. Logs use the same classifier as the written flags.
-
-**Upgrade:** preserve your connection settings and intentional
-`COPILOT_SKU_PATTERNS` / `COPILOT_SKU_EXCLUDE` overrides. Add the exact E7 entries
-explicitly if adopting them into an existing custom list; defaults are not silently
-merged into overrides, and an empty pattern list still disables all matches.
-Review the new default exclusions rather than replacing a deliberate policy.
-Do not broaden matching to all `E7` or all `COPILOT` products.
-
-**Apply in Fabric:** import the updated ingester, run it to replace the licence
-snapshot, run `Copilot_Audit_Log_Processor` to update curated classifications,
-then refresh Power BI. Reprocess the affected historical rows and refresh their
-model partitions if using incremental refresh; refreshing only recent partitions
-can retain old classifications. Run `ValueLens_Data_Check` to review the stored
-flags and assigned-product combinations locally.
-
-**No PBIT rebuild is needed.** Both core Import templates (SQL and OneLake), plus
-the Studio template, read the existing flag via `Copilot Licensed` /
-`FabricTable("copilot_licensed_users")`; they do not classify `Assigned Products`.
-Local CSV and SharePoint templates likewise consume precomputed `Has license`
-from the Users rollup. Their Python processor normalizes an input licence flag,
-not SKU names: correct that supplied flag and regenerate the rollups before
-refreshing those reports. All five packaged templates, report layouts and
-bookmarks are unchanged.
-
-**Limits:** the [active-user report](https://learn.microsoft.com/en-us/graph/api/reportroot-getoffice365activeuserdetail)
-is a potentially delayed product-assignment snapshot. It does **not** expose
-per-user disabled or provisioning service-plan status, and this fix adds no
-directory/service-plan calls or permissions. A qualifying product is not proof
-of enabled service plans or payment. Exact usage-report labels for no-Teams/EEA
-E7 variants have not been verified; they are not guessed. Review unmatched labels
-against official licensing evidence before adding an exact alias. Neither the
-ingester nor the diagnostic proves the snapshot includes every entitled user.
-
-Shared and Studio `_core` notebook copies are synchronized with the canonical
-notebooks. Run `scripts/sync-shared.ps1 -Check` and
-`python -B -m unittest discover -s tests -v` from the repository root to check
-distribution and core-template integrity.
-
-The regression suite executes the notebook's real Python classifier and mocked
-report parsing locally, checks mirrored cells compile, and inspects packaged
-model/query contracts and existing report-integrity checks. It does not execute
-Spark/Delta writes, Power Query M, Desktop refresh or tenant entitlement queries.
+| `ValueLens - Fabric.pbit` | Import template using the Lakehouse SQL analytics endpoint. |
+| `ValueLens - Fabric OneLake.pbit` | Import template using the OneLake Tables endpoint over HTTPS/443. |
+| `notebooks/` | Core ingesters, `Copilot_Audit_Log_Processor`, and optional-source ingesters. |
+| `pipelines/` | Fabric pipeline JSON for the reviewed **core** orchestration plus opt-in branches. |
+| `docs/` | Reference notes, including the read-only SQL checker pack. |
+| `extended/` | Separate Fabric + Copilot Studio add-on build. |
 
 ## Quick start
 
-The notebooks land the Delta tables; the template is a thin client over them. At a glance:
+1. **Create a Lakehouse** and note the SQL analytics endpoint.
+2. **Register an Entra app** for the required Graph permissions — see [`docs/PERMISSIONS.md`](docs/PERMISSIONS.md).
+3. **Import and run the core notebooks** from [`notebooks/README.md`](notebooks/README.md).
+4. **Run the processor** after audit + licensed-user ingestion.
+5. **Open one template** (`SQL analytics endpoint` or `OneLake`) and load data.
+6. **Schedule the pipeline first, then schedule Power BI refresh separately.**
 
-1. **Create a Lakehouse** and note its SQL endpoint.
-2. **Register an Entra app** with three Graph permissions.
-3. **Run the core ingester notebooks** (audit logs, licensed users, org data).
-4. **Run the curate notebook** — shapes the audit-log fact table once in Spark.
-5. **Connect the template** — choose SQL or OneLake, enter connection and date parameters, then **Load**.
-6. **Schedule the refresh** to match your notebook cadence.
+### Connect and refresh
 
-<details>
-<summary><b>1. Create a Lakehouse</b></summary>
-
-In a Fabric workspace on a capacity (F2+ or trial): **+ New -> Lakehouse**, name it (e.g.
-`<your-lakehouse>`). Note its **SQL endpoint** from Lakehouse settings -
-`<workspace-guid>.datawarehouse.fabric.microsoft.com`.
-</details>
-
-<details>
-<summary><b>2. Register an Entra app</b></summary>
-
-Create an app registration with these **Microsoft Graph application** permissions (admin consent
-required), then note the **Tenant ID**, **Client ID**, and a **Client secret value**:
-
-| Permission | Used by |
+| Template | Required connection parameters |
 |---|---|
-| `AuditLogsQuery.Read.All` | Audit log notebook |
-| `Reports.Read.All` | Licensed users notebook |
-| `User.Read.All` | Org data notebook |
-| `CopilotPackages.Read.All`, `Application.Read.All` | *Optional* — Agent 365 catalog notebook (app-registration path, see [Optional sources](#optional-sources)) |
-</details>
+| SQL | **Fabric SQL Endpoint** (copy the Lakehouse SQL connection server) and **Lakehouse Name** |
+| OneLake | **Fabric Workspace ID** and **Lakehouse ID** (lowercase GUIDs from the Lakehouse URL, without surrounding spaces) |
 
-<details>
-<summary><b>3. Run the core ingester notebooks</b></summary>
+Set **RangeStart** (inclusive) and **RangeEnd** (exclusive) to cover the required history.
+Keep **Enable_ProductFeedback** and **Enable_Agent365** set to `Exclude` until their
+tables are ready; use `Include` when enabling them. Sign in with an Organizational
+Account that can read the source, then load in Desktop.
 
-For each core notebook (audit logs, licensed users, org data): **+ New -> Import notebook**, attach it
-to your Lakehouse and pin it as default, then paste your three values into the `# === CONFIG ===`
-cell and run.
+After publishing, configure the corresponding data-source credentials in Power BI
+Service. For OneLake use Organizational Account/OAuth2 at the **Tables-root URL**.
+Preserve the packaged [`FabricTable` helper](../scripts/onelake/FabricTable.pq):
+its single `AzureStorage.DataLake` source outside the table function supports Service
+refresh. Do not replace it with dynamic per-table URL fallbacks. The existing
+OneLake refresh and glossary fixes are unchanged by this notebook update.
 
-| Notebook | Cadence | Output table |
-|---|---|---|
-| `Copilot_Audit_Log_Direct_Ingester.ipynb` | Daily (Graph caps audit queries to a 7-day window) | `dbo.copilot_interactions_parsed` |
-| `Copilot_Licensed_Users_Direct_Ingester.ipynb` | Weekly / monthly | `dbo.copilot_licensed_users` |
-| `Copilot_Org_Data_Direct_Ingester.ipynb` | Weekly | `dbo.copilot_org_data` |
+Run **Refresh now** to check saved credentials, then confirm a scheduled refresh
+after successful ingestion and processing. A separate fixed refresh time must
+allow the pipeline to finish; the supplied pipeline does not trigger model refresh.
 
-Use each notebook's **Schedule** button, or wire all three into a single Fabric pipeline (see
-`pipelines/`).
+## Run order (reviewed)
 
-> For production, read the secret from Key Vault instead of a literal - each CONFIG cell has a
-> commented `notebookutils.credentials.getSecret(...)` example.
-</details>
+### Core path
 
-<details>
-<summary><b>4. Run the curate notebook</b> (shapes the audit-log fact table)</summary>
+```text
+Graph audit ----------------------> Copilot_Audit_Log_Direct_Ingester ----> copilot_interactions_parsed --+
+Graph licensed users -------------> Copilot_Licensed_Users_Direct_Ingester -> copilot_licensed_users -----+--> Copilot_Audit_Log_Processor -> copilot_interactions_curated
+Graph org users ------------------> Copilot_Org_Data_Direct_Ingester ------> copilot_org_data -------------> semantic model only
 
-One extra notebook does the heavy audit-log shaping **once in Spark**, so Power BI never has to.
-Import `notebooks/Copilot_Audit_Log_Processor.ipynb`, attach it to the same Lakehouse, and run it
-**after** the audit-log ingester (and after the licensed-users / Agents 365 producers, which it joins).
-
-| Notebook | Reads | Writes |
-|---|---|---|
-| `Copilot_Audit_Log_Processor.ipynb` | `copilot_interactions_parsed` (+ `copilot_licensed_users`, `agents_365`) | `dbo.copilot_interactions_curated` |
-
-It parses the `AccessedResources` / `AISystemPlugin` JSON, explodes accessed resources, derives the
-date columns, normalises the UPN, joins the licence flag and resolves the agent map — the **same
-output** the template's Power Query used to produce, but computed once and V-Ordered on disk. The
-template then reads this one table with **no transformation**, which is what makes refreshes fast and
-Direct Lake possible.
-
-> **It does not ingest, and does not replace the ingester.** Order per run:
-> audit-log ingester → **this curate notebook** → semantic-model refresh. Drop it into the same
-> pipeline immediately before the refresh. Use `WRITE_MODE = "overwrite"` for the first backfill,
-> then `"merge"` for daily runs.
-</details>
-
-<details>
-<summary><b>5. Connect the template</b></summary>
-
-Choose one core template in Power BI Desktop. Both read the same processed
-Lakehouse tables, including `copilot_interactions_curated`, `copilot_licensed_users`
-and `copilot_org_data`. Complete notebook ingestion and processing before refreshing
-the report.
-
-For `ValueLens - Fabric.pbit`:
-
-| Parameter | Required? | Value |
-|---|---|---|
-| **Fabric SQL Endpoint** | Yes | `<workspace-guid>.datawarehouse.fabric.microsoft.com` |
-| **Lakehouse Name** | Yes | Your Lakehouse name (e.g. `<your-lakehouse>`) |
-
-For `ValueLens - Fabric OneLake.pbit`:
-
-| Parameter | Required? | Value |
-|---|---|---|
-| **Fabric Workspace ID** | Yes | Clean lowercase workspace GUID, with no surrounding whitespace; not its display name |
-| **Lakehouse ID** | Yes | Clean lowercase Lakehouse item GUID, with no surrounding whitespace; not its name or SQL endpoint ID |
-
-Both templates also require a date window:
-
-| Parameter | Required? | Value |
-|---|---|---|
-| **RangeStart** | Yes | Start timestamp, inclusive, covering the history to import |
-| **RangeEnd** | Yes | End timestamp, exclusive; use 1 September at midnight to include all of 31 August |
-| `Enable_ProductFeedback` | Optional | `Include` to load `user_feedback`, else `Exclude` |
-| `Enable_Agent365` | Optional | `Include` to load `agents_365`, else `Exclude` |
-
-The release files have no prefilled tenant or test-Lakehouse identifiers. For OneLake,
-copy the two GUIDs from the Lakehouse's Fabric URL and enter them in the required format
-above. Preserve both parameters' neutral `null` defaults, names and lineage in the
-template. Names containing spaces are not valid substitutes. Sign in using
-**Organizational Account** credentials for an account that
-can read the selected source, then click **Load**. A connection dialog can remain
-behind the main Desktop window; bring it forward if the report appears to be waiting.
-
-Both templates use **Import** mode. Confirm refresh and report filters before
-publishing with approval, then configure the matching SQL or OneLake credentials in
-the Service. OneLake uses HTTPS port **443**; this fix does not migrate to SQL or
-Direct Lake. HTTPS alone does not bypass tenant, proxy or data-access policy.
-
-**Stable OneLake source.** Use the canonical
-[`FabricTable` helper](../scripts/onelake/FabricTable.pq), replacing dynamic
-per-table/per-schema URL fallbacks. Its source must have this shape:
-
-```powerquery
-let
-    BasePath = "https://onelake.dfs.fabric.microsoft.com/" & #"Fabric Workspace ID" & "/" & #"Lakehouse ID" & "/Tables",
-    Source = AzureStorage.DataLake(BasePath, [HierarchicalNavigation = true]),
-    ReadTable = ...
-in
-    ReadTable
+After successful notebook / pipeline completion:
+Power BI semantic model refresh (separate schedule or manual refresh)
 ```
 
-This is a source-shape illustration; paste the complete canonical helper, not the
-ellipsis. Keep the single `AzureStorage.DataLake` call **outside** `ReadTable`.
-Navigate that source to either a direct table directory or a schema-nested table
-directory, reject duplicate table-name matches (never select the first match), and
-read the selected directory with `DeltaLake.Table(Directory)`.
+### Optional reviewed branches
 
-Keep the tested source expression unchanged: the original helper combined
-parameter transformations and dynamic fallback paths and failed Service refresh.
-The replacement uses plain parameter composition and a single source outside the
-returned function. The test did not isolate which original construct alone caused
-the rejection. This is not a blanket restriction on parameters.
-Keep the **Tables-root URL**, not a workspace-root URL: the latter was discovered
-but credential validation returned HTTP 400.
+```text
+Graph Agent 365 registry ---------> Copilot_Agent365_Registry_Ingester ----> agents_365 -----------+
+Files/agent365/agents.csv -------> Copilot_Agent365_Lander --------------- > agents_365 -----------+--> processor + model
+Files/product_feedback/*.csv ----> Copilot_ProductFeedback_Ingester -------> user_feedback --------> model
+```
 
-**Upgrade options:**
+- **Licence data feeds both the processor and the model.**
+- **Org data feeds the model only.**
+- **`agents_365` can come from either the registry ingester or the CSV lander, never both.**
+- The **shipped pipeline JSON currently wires `EnableAgent365` to the CSV lander**, not the registry ingester.
+- **Power BI refresh is separate** after a successful run; this repo does **not** ship a refresh activity inside the pipeline JSON.
 
-1. **New PBIT:** open the updated OneLake template, re-enter parameters, reload data
-   and reapply customizations. Publish only after approval.
-2. **Existing PBIX:** replace `FabricTable` in Power Query's **Advanced Editor** with
-   the canonical helper, apply changes, then refresh in Desktop. Republish only
-   after approval.
+## Checker pack (read-only T-SQL)
 
-For template maintainers, from the release root run
-`python scripts\Update-OneLake-Template.py --check` to check synchronization.
-Running `python scripts\Update-OneLake-Template.py` without flags rebuilds only the
-authoritative OneLake PBIT, updating both model and pending copies.
+Use the reviewed checker pack when you want a quick parity / sanity read without editing notebooks:
 
-**Glossary sorting:** the OneLake template also fixes the Metric Glossary
-sort-by-column warning. Repeated metric labels now share one global `MetricOrder`
-(the minimum original order per case-insensitive label), including across pages.
-All 113 rows, descriptions, labels, `PageOrder` values and sort-by-column bindings
-are preserved; 13 order values across 11 conflicting labels changed. Replacing
-only `FabricTable` in an existing PBIX does not apply this separate glossary fix.
-</details>
+- [`docs/checker/ValueLens-Fabric-Quick-TSQL-Checks.sql`](docs/checker/ValueLens-Fabric-Quick-TSQL-Checks.sql)
+- [`docs/checker/ValueLens-Fabric-Quick-TSQL-Checks.docx`](docs/checker/ValueLens-Fabric-Quick-TSQL-Checks.docx)
 
-<details>
-<summary><b>6. Schedule the refresh</b></summary>
+Scope:
 
-In the Service, configure the semantic model's matching source connection and
-credentials. For OneLake, bind the matching **AzureDataLakeStorage** cloud source at
-`https://onelake.dfs.fabric.microsoft.com/<workspace-guid>/<lakehouse-guid>/Tables`
-and sign in using **Organizational Account** through the normal OAuth UI.
-REST credential setup accepts only an access token (approximately one hour), not
-durable scheduled-refresh credentials; it does not replace that UI sign-in.
-For SQL, sign in to the matching SQL source under **Settings -> Data source credentials**.
-Run an **on-demand Service refresh successfully before enabling Scheduled refresh**,
-then choose a cadence that matches your notebook schedule.
+- **Read-only T-SQL**
+- Run in the **Lakehouse SQL analytics endpoint**
+- **Not** a Spark SQL notebook
+- Reviewed against the current local notebook/model contracts
+- **Not live-tested** against your tenant or endpoint
 
-> **Incremental refresh is pre-configured.** The template ships with an Import-mode incremental-refresh
-> policy on the `Chat + Agent Interactions (Audit Logs)` fact table (rolling 12-month window, last
-> ~7 days re-queried each run), intended to load history initially and refresh recent
-> partitions thereafter. It needs a **Premium / PPU / Fabric** capacity. To change the
-> window - or to use **Direct Lake** instead - see [`docs/INCREMENTAL-REFRESH.md`](docs/INCREMENTAL-REFRESH.md).
+The four queries intentionally use:
 
-The OneLake variant retains the policy but reads Delta through Power Query rather
-than folding a T-SQL filter to the SQL endpoint. Do not assume equivalent refresh
-performance on large datasets; validate service refresh duration and capacity use
-for the intended history window.
+- `COUNT_BIG(*)`
+- Monday-based weekly grouping
+- `CreationDate`-derived week checks for parsed vs curated parity
+- separate definitions for **prompt rows**, **distinct prompt messages**, **sessions** (`ThreadId`) and **users**
 
-**Verification scope:** on **8 September 2026**, the full packaged semantic model
-(34 tables, 176 measures, relationships and configured refresh policy) completed an
-on-demand Power BI Service refresh against isolated synthetic fixtures, with A365
-and feedback enabled. Source row counts and licensing measures matched the fixture.
-An earlier reduced E7 fixture also refreshed successfully. These runs do not
-establish rendered report behavior, subsequent incremental-window behavior,
-large-tenant performance, or durable scheduled refresh. Complete the Organizational
-Account sign-in and confirm a scheduled run in your own environment.
+## Reviewed notebook changes
 
-The corrected packaged glossary was also executed read-only on a local Analysis
-Services engine: all 113 rows matched, with no metric or page sort conflicts.
-That query validates the glossary expression, not a new Service refresh or UI test.
+These notes are based on the current local notebook diffs in `3. Fabric/notebooks/`.
 
-The generic ADLS connector documentation warns about subfolder limitations.
-The OneLake Tables endpoint worked in this specific Service test; this is not a
-claim of universal subfolder support. Official references:
-[dynamic sources and refresh](https://learn.microsoft.com/power-bi/connect-data/refresh-data#refresh-and-dynamic-data-sources),
-[`AzureStorage.DataLake`](https://learn.microsoft.com/powerquery-m/azurestorage-datalake),
-[`DeltaLake.Table`](https://learn.microsoft.com/powerquery-m/deltalake-table),
-and [ADLS Gen2 connector limitations](https://learn.microsoft.com/power-query/connectors/data-lake-storage).
-</details>
+### Audit ingester
+
+- Stable parsed-row keys now include **`Id`**, **`Source_RecordKey`**, **`Source_MessageKey`** and **`Source_ResourceKey`**.
+- `MODE` must be **`backfill`** or **`incremental`**.
+- **Backfill** writes the parsed table with **`WRITE_MODE='overwrite'`**.
+- **Incremental** re-queries the trailing **`LOOKBACK_DAYS = 7`** and writes with **merge-by-Id** semantics.
+- Parsed output still derives `InteractionDate`, `WeekStart` and `MonthStart` from `CreationDate`.
+- Legacy parsed tables missing the stable key columns fail clearly and require a deliberate fresh backfill before incremental resumes.
+- Start that upgrade with a **new, unused staging directory and separate output
+  table** to validate coverage. Reusing staging can resume previously completed
+  windows instead of fetching them afresh. Backfill to the same output table
+  replaces existing parsed data; pause overlapping runs and rerun the processor
+  afterward. See [upgrade guidance](docs/INGESTION-STRATEGY.md).
+
+### Audit processor
+
+- Curated output now uses **`MERGE_KEYS = ["Id"]`**.
+- First curated rebuild: **`WRITE_MODE="overwrite"`**.
+- Ongoing runs after the parsed-table key upgrade: **`WRITE_MODE="merge"`**.
+- Merge is rejected if the source keys are missing, blank, or the existing curated table is missing the merge key.
+
+### Snapshot-safety guards
+
+- **Licensed users:** rejects empty, malformed and conflicting duplicate rows.
+- **Org data:** rejects malformed `/users` pages, conflicting duplicate identities and manager cycles.
+- **Agent 365 registry:** rejects rows without `Title ID` and conflicting duplicate registry rows.
+- **Product feedback:** `WRITE_MODE='append'` is explicitly rejected; missing files preserve the existing snapshot unless you deliberately allow an empty first placeholder.
+- Feedback discovers exports using OneLake file metadata, not a notebook-local
+  filesystem mount. Agent365 aliases are projected without duplicate
+  case-insensitive column names.
+
+### Validation boundaries
+
+The updated transformation and Delta-write paths were exercised in Fabric Spark
+using synthetic inputs: audit replay/reordering, late-event insertion, processor
+overwrite/merge, and licence/org/Agent365/feedback snapshot safeguards. Local
+regressions also cover extraction/checkpoint helpers and packaged model contracts.
+This does **not** validate tenant Graph permissions, source retention/completeness,
+a production backfill, or scheduled Power BI refresh. Validate those in your
+deployment before switching production.
+
+### Data check scope
+
+`ValueLens_Data_Check.ipynb` is a **read-only diagnostic**. It shows stored flags, distinct counts and identity overlap. It does **not** independently classify licences or prove historical parity by itself.
 
 ## Optional sources
 
-Leave every `Enable_*` toggle on `Exclude` and the core dashboard still works - optional tables simply
-load empty. To switch one on, set its toggle to `Include` and run the matching notebook:
-
-| Source | Toggle | Notebook |
+| Source | Notebook | Notes |
 |---|---|---|
-| Cowork / Work IQ consumption (MAC) | `Enable_CostConsumption` | `notebooks/Copilot_Cost_Consumption_Ingester.ipynb` ([setup guide](flows/COST-CONSUMPTION-SETUP.md)) |
-| Product feedback | `Enable_ProductFeedback` | `notebooks/Copilot_ProductFeedback_Ingester.ipynb` |
-| Agents 365 | `Enable_Agent365` | **`notebooks/Copilot_Agent365_Registry_Ingester.ipynb`** *(default — Graph API app-only, scheduled/unattended)* **·** `notebooks/Copilot_Agent365_Lander.ipynb` *(CSV-export fallback — use only when the Ingester's app-reg permissions aren't available)* |
-
-Cowork / Work IQ consumption and product feedback are **export-only** in Microsoft's portals (no API) -
-the `flows/` folder has Power Automate flows that auto-land those exports for you. Full detail in
-[`docs/OPTIONAL-SOURCES.md`](docs/OPTIONAL-SOURCES.md). The **Power Platform (PPAC) per-agent credit**
-export is a Studio-build source — see the
-[Fabric + Copilot Studio](extended/Fabric%20+%20Copilot%20Studio/README.md) build.
-
-<details>
-<summary><b>Copilot Studio agent deep-dive</b> — separate add-on template (click to expand)</summary>
-
-Agent-transcript analytics and the Agents 365 registry preview are **not** part of the base *No Studio*
-build — they ship as the **[Fabric + Copilot Studio](extended/Fabric%20+%20Copilot%20Studio/README.md)**
-template and notebooks. To enable them:
-
-1. Use the **Fabric + Copilot Studio** `.pbit` instead of the base template.
-2. Set `Enable_Dataverse` = `Include`.
-3. Run `3. Fabric/extended/Fabric + Copilot Studio/notebooks/Copilot_Agent_Transcript_Parser.ipynb`.
-
-Full setup lives in the [Fabric + Copilot Studio README](extended/Fabric%20+%20Copilot%20Studio/README.md).
-</details>
-
-<details>
-<summary><b>Manual export instructions</b> — for first-time setups or sources without an API (click to expand)</summary>
-
-The notebooks above are the recommended path. If you'd rather export the underlying data by hand first
-(common for a one-off pilot, or for sources that have no API), use the steps below. Each export
-produces a CSV you can drop into the Lakehouse `Files/` area and ingest with the matching notebook.
-
-### Audit logs — Microsoft Purview
-- **Portal:** [security.microsoft.com](https://security.microsoft.com) → **Audit**
-- **Role:** Audit Reader or Compliance Administrator
-- **Activities:** `Copilot Activities – Interacted with Copilot` (required); optionally `Interacted with a Connected AI App` and `Interacted with an AI App` for third-party agent coverage
-- **Output:** Set a date range, run the search, **Export → Download all results** (CSV, ~50 columns, one row per interaction)
-
-### Licensed users — Microsoft 365 Admin Center
-- **Portal:** [admin.microsoft.com](https://admin.microsoft.com) → **Reports → Usage → Microsoft 365 Copilot → Readiness**
-- **Role:** Global Administrator or Reports Reader
-- **Pre-step:** turn off "Display concealed user/group/site names" under **Settings → Org Settings → Reports** so user names aren't masked
-- **Output:** Scroll to **Copilot Readiness Details**, click `...` → **Export** (CSV with `UserPrincipalName`, `Department`, `Has Copilot license assigned`, `LastActivityDate`)
-
-### Org data — Microsoft Entra
-- **Portal:** [entra.microsoft.com](https://entra.microsoft.com) → **Identity → Users → All users**
-- **Role:** User Administrator or Global Reader
-- **Required columns:** `UserPrincipalName`, `Department`. Recommended: `JobTitle`, `Office`, `City`, `Country`, `Manager`
-- **Output:** **Download users** (CSV)
-- **Bring your own org data (instead of Entra)?** Set the pipeline parameter `EnableOrgDataPull=false`
-  and upload your own users CSV (same columns as above — the shape a **Viva Insights** org-data file
-  uses). See [`pipelines/README.md`](pipelines/README.md).
-
-### Agent 365 — Microsoft Admin Center
-- **Default path:** **`notebooks/Copilot_Agent365_Registry_Ingester.ipynb`** pulls the catalog directly through the Microsoft Graph app registration (app-only — `CopilotPackages.Read.All` + `Application.Read.All`, admin-consented), so no manual export is needed and it can run scheduled/unattended.
-- **Fallback:** `notebooks/Copilot_Agent365_Lander.ipynb` reads the manual admin-center CSV export from `Files/agent365/agents.csv`. Use this only when your tenant can't grant the Ingester's app-reg permissions, or for one-off / evaluation runs. The two notebooks target the same `dbo.agents_365` table — pick one, don't run both.
-- **Portal:** [admin.microsoft.com](https://admin.microsoft.com) → **Agents**
-- **Role:** Global Administrator or Reports Reader (with AI Admin in a Frontier-enrolled tenant)
-- **Output:** **Export** from the Agents Overview (CSV: agent name, ID, availability status, last activity, template, assigned users)
-
-### Cowork / Work IQ consumption — Microsoft 365 Admin Center
-The Cowork / Work IQ per-user credit export is **export-only**. Land it in the Lakehouse
-`Files/cost_consumption/` folder and ingest it with `notebooks/Copilot_Cost_Consumption_Ingester.ipynb`
-— full portal steps are in [`flows/COST-CONSUMPTION-SETUP.md`](flows/COST-CONSUMPTION-SETUP.md);
-schema and model wiring in [`flows/COST-CONSUMPTION.md`](flows/COST-CONSUMPTION.md).
-
-### Credit consumption — Power Platform Admin Center *(Studio build)*
-The **per-agent Copilot Studio message credit** export now ships with the **[Fabric + Copilot Studio](extended/Fabric%20+%20Copilot%20Studio/README.md)**
-build — its notebook, flows and step-by-step guide live in `3. Fabric/extended/Fabric + Copilot Studio/`
-([setup guide](extended/Fabric%20+%20Copilot%20Studio/CREDIT-CONSUMPTION-SETUP.md)).
-
-### Product feedback — Microsoft Admin Center (Health)
-- **Portal:** [admin.microsoft.com](https://admin.microsoft.com) → **Health → Product feedback**
-- **Role:** Global Administrator or Reports Reader
-- **Filters:** Product = **Microsoft 365 Copilot** (and optionally Copilot Studio); date range matching your audit export
-- **Privacy:** to see user-level data, ensure "Display concealed user names in all reports" is disabled
-- **Output:** **Export data** (CSV: date, UPN, product, feedback type, rating, verbatim comment)
-
-### Copilot Studio agent transcripts — Power Apps / Power Automate
-- **Portal:** [make.powerapps.com](https://make.powerapps.com) (one-off) or [make.powerautomate.com](https://make.powerautomate.com) (recurring)
-- **Role:** System Administrator, System Customizer, or Environment Maker (Dataverse read on `ConversationTranscript`)
-- **One-off:** open the **ConversationTranscript** table → **Data → Export data to Excel**, save as CSV
-- **Recurring:** scheduled flow → **Dataverse → List rows** (table `ConversationTranscripts`, filter `createdOn ge [yesterday]`) → **Create file** in OneDrive/SharePoint or send via email; the AIBV email-landing flow in [`flows/`](flows/) can pick it up automatically
-
-### Loading the exports
-Drop each CSV into the matching folder under your Lakehouse `Files/` area (e.g. `Files/audit/`,
-`Files/cost_consumption/`, `Files/feedback/`). Then run the matching notebook from the table above —
-each notebook tolerates missing inputs, so partial coverage is fine for a first pass.
-
-</details>
-
-## Works beyond Fabric
-
-<details>
-<summary>Portable to Databricks, Synapse, Azure SQL, or a Fabric Warehouse (click to expand)</summary>
-
-The two core artifacts are deliberately portable:
-
-- **The notebooks** are plain Python + PySpark - they call Graph with `requests` and write Delta with
-  `df.write.saveAsTable(...)`. They run unchanged on any Spark engine (Fabric, Databricks, Synapse).
-- **The template** uses the `Sql.Database()` connector, which works against any SQL endpoint exposing
-  those tables - Fabric Lakehouse or Warehouse, Databricks SQL Warehouse, Synapse SQL pool, Azure SQL.
-
-To retarget, change just two things: point the notebooks' `OUTPUT_TABLE` at your database, and set the
-template's two parameters (**Fabric SQL Endpoint** = your host, **Lakehouse Name** = your database).
-The template only needs the three tables - `copilot_interactions_parsed`, `copilot_licensed_users`,
-`copilot_org_data` - to exist in that one database with their expected schema. Already producing parsed
-CSVs upstream? The [`../1. Local CSV/`](../1.%20Local%20CSV/) and [`../2. SharePoint/`](../2.%20SharePoint/)
-paths consume them with no Spark step.
-</details>
+| Agents 365 registry | `notebooks/Copilot_Agent365_Registry_Ingester.ipynb` | Preferred unattended path when Graph permissions are available. |
+| Agents 365 CSV fallback | `notebooks/Copilot_Agent365_Lander.ipynb` | Manual/export fallback. The shipped pipeline invokes this branch. |
+| Product feedback | `notebooks/Copilot_ProductFeedback_Ingester.ipynb` | Reads landed files from `Files/product_feedback/`; safe overwrite snapshot only. |
+| Cowork / Work IQ consumption | `notebooks/Copilot_Cost_Consumption_Ingester.ipynb` | Optional export-only source; see the flow docs. |
+| Copilot Studio add-ons | `extended/Fabric + Copilot Studio/` | Separate build for transcripts and PPAC credit detail. |
 
 ## Troubleshooting
 
-<details>
-<summary>Common symptoms and fixes (click to expand)</summary>
+Start with [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md). The fastest triage path is:
 
-| Symptom | Fix |
-|---|---|
-| `401`/`403` from Graph | Confirm the three **application** permissions are admin-consented; regenerate the client secret if expired. The audit notebook needs `AuditLogsQuery.Read.All` specifically (it calls `/security/auditLog/queries`). |
-| Audit query never finishes | Purview processes it asynchronously; the notebook polls with backoff. If it times out, narrow `LOOKBACK_DAYS` in the CONFIG cell. |
-| `Login failed` / `cannot open database` (Power BI) | The SQL endpoint host or database name is wrong - recheck the Lakehouse settings page. |
-| `the key didn't match any rows` | A notebook ran against the wrong Lakehouse - pin your Lakehouse as default and re-run. |
-| All users show "Unlicensed" | The licensed-users notebook hasn't run yet, or its report period is too narrow (`REPORT_PERIOD = 'D30'`). |
-| Agent Health visuals blank (`Users shared`, `Active Users`, `Total sessions`, `Exception rate`, `Last Activity Date`) | Expected when you land the **registry / catalogue** export (`Copilot_Agent365_Registry_Ingester`, Graph `/catalog/packages`, or PAX `-IncludeAgent365Info`). That is a 28-column inventory and carries no usage telemetry — those five fields come from the Admin Center → **Agents** observability export. The query adds them as typed nulls so refresh still succeeds. See [`docs/DATA-DICTIONARY.md`](docs/DATA-DICTIONARY.md#4-agents_365). |
-| Refresh slow (minutes to hours) | Almost always the audit-log transforms running inside Power Query. Make sure you've run **`Copilot_Audit_Log_Processor`** and that the fact table points at `copilot_interactions_curated` (the shaping is meant to happen upstream in Spark, not on refresh). The template also ships with **incremental refresh** pre-configured (first load is full, then only recent days) — needs a Premium/PPU/Fabric capacity; see [`docs/INCREMENTAL-REFRESH.md`](docs/INCREMENTAL-REFRESH.md). Fastest option on Fabric: convert to **Direct Lake**. |
-
-</details>
+1. Confirm the **three core tables** exist and have rows.
+2. Keep optional `Enable_*` toggles off until their source tables are ready.
+3. Re-run the **processor** after any parsed-table backfill or licensed-user snapshot change.
+4. Refresh the semantic model **after** notebook completion, not on an unrelated fixed timer.
 
 ## Reference
 
-- **Roles & permissions (all sources):** [`docs/PERMISSIONS.md`](docs/PERMISSIONS.md)
-- **Table schemas:** [`docs/DATA-DICTIONARY.md`](docs/DATA-DICTIONARY.md)
-- **Incremental refresh (Import mode):** [`docs/INCREMENTAL-REFRESH.md`](docs/INCREMENTAL-REFRESH.md)
-- **Optional sources in depth:** [`docs/OPTIONAL-SOURCES.md`](docs/OPTIONAL-SOURCES.md)
-- **Cowork / Work IQ consumption, step by step:** [`flows/COST-CONSUMPTION-SETUP.md`](flows/COST-CONSUMPTION-SETUP.md) (start here) · [`flows/COST-CONSUMPTION.md`](flows/COST-CONSUMPTION.md) (schema + model wiring)
-- **PPAC credit consumption (Studio build):** [`Fabric + Copilot Studio/CREDIT-CONSUMPTION-SETUP.md`](extended/Fabric%20+%20Copilot%20Studio/CREDIT-CONSUMPTION-SETUP.md)
-- **Audit-log JSON schema:** [Microsoft Learn - CopilotInteraction](https://learn.microsoft.com/en-us/office/office-365-management-api/copilot-schema)
+- [`notebooks/README.md`](notebooks/README.md)
+- [`pipelines/README.md`](pipelines/README.md)
+- [`docs/PERMISSIONS.md`](docs/PERMISSIONS.md)
+- [`docs/DATA-DICTIONARY.md`](docs/DATA-DICTIONARY.md)
+- [`docs/INGESTION-STRATEGY.md`](docs/INGESTION-STRATEGY.md)
+- [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md)
+- [`flows/COST-CONSUMPTION-SETUP.md`](flows/COST-CONSUMPTION-SETUP.md)
+- [`extended/Fabric + Copilot Studio/README.md`](extended/Fabric%20+%20Copilot%20Studio/README.md)

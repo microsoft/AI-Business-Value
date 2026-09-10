@@ -6,7 +6,7 @@ differs:
 
 | Version | Source layer | Each table loads via |
 | --- | --- | --- |
-| **Fabric** | OneLake Lakehouse (Delta) | `FabricTable("<delta_table>")` → Lakehouse SQL endpoint |
+| **Fabric** | OneLake Lakehouse (Delta) | `FabricTable("<delta_table>")` via either the SQL analytics endpoint or the OneLake Tables endpoint |
 | **SharePoint** | CSV files in SharePoint/OneDrive | `SharePointCsv("<file>")` / `Web.Contents(...)` |
 
 Because the schema is identical, the report, every measure, and all downstream M is shared. A
@@ -80,7 +80,7 @@ Agent_TitleID, Agent_EntraId
 and `agents_365`) and writes **`copilot_interactions_curated`**. This — not the `_parsed` table — is
 what the Fabric template's `Chat + Agent Interactions (Audit Logs)` partition binds to. It is the
 same shape the template's Power Query used to produce, but computed once in Spark and V-Ordered on
-disk, which is what makes refreshes fast and Direct Lake possible.
+disk so the shipped Import templates can read a flat fact table quickly.
 
 **Schema = every column of `copilot_interactions_parsed`, plus these 26 enrichment columns:**
 
@@ -194,9 +194,10 @@ create or populate a column by hand; a non-matching GUID simply does not join (n
 an export carries Entra GUIDs, custom agents still resolve by name.
 
 ### 5. `user_feedback` — Product Feedback (OCV export)
-An OCV/Viva feedback **CSV** dropped at `Files/copilot_transcripts/feedback.csv`, parsed by
-`build_feedback()`. The dashboard's `ProductFeedback` table renames the OCV space-named columns. The
-empty placeholder emits the **full superset** so a missing/partial export cannot break refresh:
+An OCV/Viva feedback **CSV** dropped at `Files/product_feedback/`, parsed by
+`Copilot_ProductFeedback_Ingester.ipynb`. The dashboard's `ProductFeedback` table renames the OCV
+space-named columns. The empty placeholder emits the **full superset** so a missing/partial export
+cannot break refresh, and the notebook now rejects `WRITE_MODE='append'` for this snapshot source:
 
 ```
 Feedback Id, Comment, Translated Comment, Comment Language,
@@ -207,7 +208,7 @@ AI Context Prompt, AI Context Response Message,
 Survey Question, Survey Response Option, Additional Metadata,
 Date Submitted Date, Sentiment
 ```
-*(Recommended: also add `MissingField.Ignore` to the model's `Table.RenameColumns` so partial OCV exports are tolerant.)*
+*(The model should also keep `MissingField.Ignore` on `Table.RenameColumns` so partial OCV exports remain tolerant.)*
 
 ### 6. `copilot_cost_consumption` — Copilot credit usage (MAC Cost management export)
 Produced by `Copilot_Cost_Consumption_Ingester` from the **Microsoft 365 Admin Center → Copilot →
