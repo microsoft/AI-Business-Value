@@ -26,7 +26,8 @@ Both are **Import**, not Direct Lake.
 | `notebooks/` | Core ingesters, `Copilot_Audit_Log_Processor`, and optional-source ingesters. |
 | `pipelines/` | Fabric pipeline JSON for the reviewed **core** orchestration plus opt-in branches. |
 | `docs/` | Reference notes, including the read-only SQL checker pack. |
-| `extended/` | Separate Fabric + Copilot Studio add-on build. |
+| `archive/extended/` | Archived Fabric + Copilot Studio reference, not a recommended active deployment; core notebook mirrors remain synchronized. |
+| `archive/flows/` | Archived cost-consumption landing flows and guides, not active setup. |
 
 ## Quick start
 
@@ -35,7 +36,7 @@ Both are **Import**, not Direct Lake.
 3. **Import and run the core notebooks** from [`notebooks/README.md`](notebooks/README.md).
 4. **Run the processor** after audit + licensed-user ingestion.
 5. **Open one template** (`SQL analytics endpoint` or `OneLake`) and load data.
-6. **Schedule the pipeline first, then schedule Power BI refresh separately.**
+6. **Publish the configured report/model, then add a success-gated semantic model refresh and schedule the pipeline** — see [`pipelines/README.md`](pipelines/README.md#semantic-model-refresh).
 
 ### Connect and refresh
 
@@ -56,9 +57,10 @@ its single `AzureStorage.DataLake` source outside the table function supports Se
 refresh. Do not replace it with dynamic per-table URL fallbacks. The existing
 OneLake refresh and glossary fixes are unchanged by this notebook update.
 
-Run **Refresh now** to check saved credentials, then confirm a scheduled refresh
-after successful ingestion and processing. A separate fixed refresh time must
-allow the pipeline to finish; the supplied pipeline does not trigger model refresh.
+Run **Refresh now** to check saved credentials, then follow the
+[pipeline refresh setup](pipelines/README.md#semantic-model-refresh) to add a native refresh
+activity after all model-source branches succeed. The supplied JSON has no refresh activity.
+Alternatively, use a later fixed Service refresh schedule; it is **not success-gated**.
 
 ## Run order (reviewed)
 
@@ -70,7 +72,7 @@ Graph licensed users -------------> Copilot_Licensed_Users_Direct_Ingester -> co
 Graph org users ------------------> Copilot_Org_Data_Direct_Ingester ------> copilot_org_data -------------> semantic model only
 
 After successful notebook / pipeline completion:
-Power BI semantic model refresh (separate schedule or manual refresh)
+Power BI semantic model refresh (add native pipeline activity; not included in shipped JSON)
 ```
 
 ### Optional reviewed branches
@@ -85,7 +87,7 @@ Files/product_feedback/*.csv ----> Copilot_ProductFeedback_Ingester -------> use
 - **Org data feeds the model only.**
 - **`agents_365` can come from either the registry ingester or the CSV lander, never both.**
 - The **shipped pipeline JSON currently wires `EnableAgent365` to the CSV lander**, not the registry ingester.
-- **Power BI refresh is separate** after a successful run; this repo does **not** ship a refresh activity inside the pipeline JSON.
+- **Add Power BI refresh after all model-source branches succeed** using the [native activity](pipelines/README.md#semantic-model-refresh); this repo does **not** ship it inside the pipeline JSON.
 
 ## Checker pack (read-only T-SQL)
 
@@ -165,8 +167,10 @@ deployment before switching production.
 | Agents 365 registry | `notebooks/Copilot_Agent365_Registry_Ingester.ipynb` | Preferred unattended path when Graph permissions are available. |
 | Agents 365 CSV fallback | `notebooks/Copilot_Agent365_Lander.ipynb` | Manual/export fallback. The shipped pipeline invokes this branch. |
 | Product feedback | `notebooks/Copilot_ProductFeedback_Ingester.ipynb` | Reads landed files from `Files/product_feedback/`; safe overwrite snapshot only. |
-| Cowork / Work IQ consumption | `notebooks/Copilot_Cost_Consumption_Ingester.ipynb` | Optional export-only source; see the flow docs. |
-| Copilot Studio add-ons | `extended/Fabric + Copilot Studio/` | Separate build for transcripts and PPAC credit detail. |
+| Cowork / Work IQ consumption | `notebooks/Copilot_Cost_Consumption_Ingester.ipynb` | Optional export-only source; landing flows and guides are [archived reference](archive/flows/COST-CONSUMPTION.md), not active setup. |
+
+The former [Copilot Studio add-on](archive/extended/Fabric%20+%20Copilot%20Studio/README.md)
+for transcripts and PPAC credit detail is archived reference, not a recommended active deployment.
 
 ## Troubleshooting
 
@@ -185,5 +189,5 @@ Start with [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md). The fastest tri
 - [`docs/DATA-DICTIONARY.md`](docs/DATA-DICTIONARY.md)
 - [`docs/INGESTION-STRATEGY.md`](docs/INGESTION-STRATEGY.md)
 - [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md)
-- [`flows/COST-CONSUMPTION-SETUP.md`](flows/COST-CONSUMPTION-SETUP.md)
-- [`extended/Fabric + Copilot Studio/README.md`](extended/Fabric%20+%20Copilot%20Studio/README.md)
+- [Archived cost-consumption setup reference](archive/flows/COST-CONSUMPTION-SETUP.md)
+- [Archived Fabric + Copilot Studio reference](archive/extended/Fabric%20+%20Copilot%20Studio/README.md)

@@ -6,7 +6,8 @@ and merge-key changes.
 This is the base **No-Studio** build: three core sources — **audit logs**, **licensed users**, and
 **org data**. Optional add-ons (Cowork / Work IQ consumption, product feedback, Agents 365) follow the
 same rules; Copilot Studio agent-transcript analytics and PPAC message-credit tables live in the
-separate [Fabric + Copilot Studio](../extended/Fabric%20+%20Copilot%20Studio/) build.
+archived [Fabric + Copilot Studio](../archive/extended/Fabric%20+%20Copilot%20Studio/) build,
+kept as reference rather than a recommended active deployment.
 
 ---
 
@@ -48,6 +49,12 @@ so a long backfill survives Purview throttling. Graph still caps each audit quer
 window, so history is assembled as bounded windows rather than one giant pull.
 
 After a parsed-table backfill, rerun **`Copilot_Audit_Log_Processor`** before refreshing Power BI.
+
+Both core PBITs ship in **Import** mode; notebook completion alone does not refresh the models.
+The shipped pipeline JSON has **no semantic-model refresh activity**. You can add a native Fabric
+**Semantic model refresh** activity with **on-success** dependencies after the processor **and all
+other enabled model-source branches**. Alternatively, configure a later, separate Power BI Service
+refresh schedule; that schedule is **not success-gated** on the pipeline.
 
 ---
 
@@ -97,6 +104,9 @@ repo rather than tracking `main`, so an upstream change can't break a running pi
 3. To upgrade: diff the new tag's `3. Fabric/notebooks/`, test in non-prod, then move the tag.
 
 **Compatibility tips:**
+- Canonical notebooks remain in `3. Fabric/notebooks/`; `scripts/sync-shared.ps1` syncs them to
+  their mirrors in `3. Fabric/archive/extended/`. Preserve this shared-notebook sync contract;
+  the archive mirrors are not independent sources of truth.
 - Drive notebooks via the CONFIG cell (tagged as the pipeline `parameters` cell) — don't fork the
   notebook body, so upgrades are a definition swap.
 - Keep secrets in **Key Vault** (`notebookutils.credentials.getSecret`), not in the CONFIG cell.

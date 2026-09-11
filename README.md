@@ -65,14 +65,14 @@ and a step up in automation.
 |---|---|---|
 | **[1. Local CSV](1.%20Local%20CSV/)** · *start here* 🧪 | You want to **see it working now** — or run a one-off look at your own numbers. | **Sample data included.** Open the template, point it at three CSVs. No tenant, no exports, no scripts. Then swap in your own export when ready. |
 | **[2. SharePoint](2.%20SharePoint/)** · *scheduled, Pro* | You want it **refreshing on its own** on **Power BI Pro** — no Fabric or Premium. | A scheduled script extracts, rolls up and uploads to SharePoint; Power BI refreshes on a timer. |
-| **[3. Fabric](3.%20Fabric/)** · *scale · recommended* | You have **Fabric capacity** (or Premium / PPU) and want the reviewed notebook + Lakehouse path. | Two **Import-mode** templates over the same Lakehouse outputs (SQL analytics endpoint or OneLake), plus optional feedback / Agent 365 / consumption sources and the separate Studio add-on. |
+| **[3. Fabric](3.%20Fabric/)** · *scale · recommended* | You have **Fabric capacity** (or Premium / PPU) and want the reviewed notebook + Lakehouse path. | Two **Import-mode** templates over the same Lakehouse outputs (SQL analytics endpoint or OneLake), plus optional feedback / Agent 365 / consumption sources. |
 
 **Not sure?** **Start with path 1.** It takes minutes and tells you whether the numbers are worth
 automating — *before* you set up any automation. Move to 2 or 3 when you want it hands-off.
 
-> Running **Copilot Studio agents** and want the deeper agent / topic / CSAT pages? That's an
-> optional add-on inside path 3 — see [`3. Fabric/extended/`](3.%20Fabric/extended/). Stand up
-> path 3 first. Landing agent transcripts in **Dataverse** instead? Use the
+> The former **Copilot Studio** agent / topic / CSAT add-on is retained as
+> [archived reference](3.%20Fabric/archive/extended/), not a recommended active deployment.
+> For agent transcripts in **Dataverse**, use the
 > [Dataverse companion repo ↗](https://github.com/Keithland89/Copilot-Studio-Agent-Analytics), which
 > reads them natively — no Fabric or SharePoint needed.
 
@@ -95,7 +95,8 @@ README.md  ·  LICENSE  ·  Images/
 1. Local CSV/      Local CSV.pbit  ·  sample-data/   ← start here, fabricated demo dataset
 2. SharePoint/     SharePoint.pbit  ·  scripts/  ·  azure-container/
 3. Fabric/         Fabric.pbit  ·  docs/  ·  flows/  ·  notebooks/  ·  pipelines/
-     extended/     optional Copilot Studio add-on — deeper agent, topic/CSAT & PPAC credit pages
+     archive/extended/  archived Copilot Studio add-on reference (core notebook mirrors still synchronized)
+     archive/flows/     archived cost-consumption flows and guides, not active setup
 archive/           superseded versions — kept for reference, not maintained
 
 Dataverse path → companion repo: Keithland89/Copilot-Studio-Agent-Analytics
@@ -126,8 +127,8 @@ Availability varies by deployment path. Use the path README for the maintained s
 | Licensed users | ✅ Core | Microsoft 365 Admin Center |
 | Org data (department / function) | ✅ Core | Microsoft Entra |
 | Agents 365 | ⬜ Optional | Agent 365 export (Fabric path) |
-| Cowork / Work IQ consumption | ⬜ Optional | Microsoft 365 Admin Center export → see the path README / [`3. Fabric/flows/COST-CONSUMPTION.md`](3.%20Fabric/flows/COST-CONSUMPTION.md) |
-| Credit consumption (billing) | ⬜ Optional | Power Platform Admin Center export → Fabric + Copilot Studio add-on only |
+| Cowork / Work IQ consumption | ⬜ Optional | Microsoft 365 Admin Center export → see the path README; [archived landing-flow reference](3.%20Fabric/archive/flows/COST-CONSUMPTION.md), not active setup |
+| Credit consumption (billing) | Archived reference only | Power Platform Admin Center export → [archived Fabric + Copilot Studio add-on](3.%20Fabric/archive/extended/) |
 | Product feedback | ⬜ Optional | M365 Admin Center → Health → Product Feedback export (Fabric path optional source) |
 | Copilot Studio agent transcripts | ⬜ Optional | Dataverse `ConversationTranscript` table — use the [Dataverse companion repo ↗](https://github.com/Keithland89/Copilot-Studio-Agent-Analytics) |
 
@@ -143,11 +144,13 @@ Maintained page lists live in the path READMEs:
 - [`1. Local CSV/README.md`](1.%20Local%20CSV/README.md)
 - [`2. SharePoint/README.md`](2.%20SharePoint/README.md)
 - [`3. Fabric/README.md`](3.%20Fabric/README.md)
-- [`3. Fabric/extended/Fabric + Copilot Studio/README.md`](3.%20Fabric/extended/Fabric%20+%20Copilot%20Studio/README.md)
+
+Archived Studio page reference (not an active deployment):
+[`3. Fabric/archive/extended/Fabric + Copilot Studio/README.md`](3.%20Fabric/archive/extended/Fabric%20+%20Copilot%20Studio/README.md).
 
 Across the maintained paths, the common core centres on activation, readiness, adoption,
 activity, value, leaderboard, heatmap and appendices. Fabric-specific optional additions
-such as feedback and Studio detail are documented in the Fabric READMEs above.
+such as feedback are documented in the active Fabric README above; Studio detail is archived.
 
 ---
 

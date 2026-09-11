@@ -40,16 +40,17 @@ This means the table the query expected is **empty or doesn't exist** in the Lak
 template at. Two usual causes:
 
 ### a) Wrong Lakehouse in the parameter
-The **Lakehouse Name** parameter must point at the Lakehouse the **three core notebooks** wrote to.
+The **Lakehouse Name** parameter must point at the Lakehouse the **three core ingesters and audit processor** wrote to.
 Verify the core tables exist and have rows — in the Fabric portal, open the SQL endpoint and run:
 
 ```sql
 SELECT COUNT(*) FROM dbo.copilot_interactions_parsed;
+SELECT COUNT(*) FROM dbo.copilot_interactions_curated;
 SELECT COUNT(*) FROM dbo.copilot_licensed_users;
 SELECT COUNT(*) FROM dbo.copilot_org_data;
 ```
 
-If any return 0 or error, the ingester notebook for that table either didn't run or wrote to a
+If any return 0 or error, the ingester or processor notebook for that table either didn't run or wrote to a
 **different** Lakehouse. Re-point the parameter, or re-run the notebook against the correct Lakehouse.
 
 ### b) An optional source is toggled on but its notebook hasn't run
@@ -64,19 +65,26 @@ Then enable one optional source at a time, only *after* its notebook has run. Se
 
 ## 3. Start on the base template first
 
-If you're deploying the **Fabric Extended (+ Studio Agent Deepdive)** build, get the base
-**`ValueLens - Fabric`** template loading cleanly first. The Extended build adds Dataverse / Copilot
-Studio dependencies that compound the errors above if core isn't working yet.
+Use the active **`ValueLens - Fabric`** template. The
+[Fabric Extended (+ Studio Agent Deepdive)](../archive/extended/Fabric%20+%20Copilot%20Studio/)
+build is **archived reference**, not a recommended active deployment. Its Dataverse / Copilot
+Studio dependencies are not required for the core dashboard.
 
 ---
 
 ## Recommended load order
 
 1. **Turn off Privacy Levels** (fixes error #1).
-2. **Confirm the 3 core tables have rows** (fixes error #2a) — re-point **Lakehouse Name** if needed.
+2. **Confirm the core ingester outputs and curated audit table have rows** (fixes error #2a) — re-point **Lakehouse Name** if needed.
 3. **Set all `Enable_*` toggles to Exclude** (fixes error #2b).
 4. **Load.** Confirm the core pages render.
 5. Enable optional sources **one at a time**, after each notebook has run.
+
+Both core PBITs use **Import** mode. If notebook runs succeed but the report stays stale, refresh
+the semantic model: the shipped pipeline JSON does **not** include a model refresh activity.
+You can add a native Fabric **Semantic model refresh** activity with **on-success** dependencies
+after the audit processor **and all other enabled model-source branches**. A later, separate
+Power BI Service refresh schedule is an alternative, but is **not success-gated** on the pipeline.
 
 ---
 

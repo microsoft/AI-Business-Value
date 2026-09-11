@@ -13,12 +13,17 @@ tables produced by the ingester notebooks.
 
 ## TL;DR
 
-- **On Fabric / Premium / PPU capacity → prefer Direct Lake.** It reads the Lakehouse Delta tables
-  in place, so there is **no import refresh and no ~5-hour refresh ceiling**. A large initial pull
-  (e.g. 4 months) is a non-event because the data already lives in the Lakehouse.
-- **On Pro / shared capacity, or a non-Fabric SQL backend → use Import + incremental refresh**
-  (the template default). To load a large history without hitting the 5-hour wall, **bootstrap the
-  partitions month-by-month over XMLA** (see below).
+- **Both core PBITs ship in Import mode**, including when published to Fabric. Keep the shipped
+  Import path; the Fabric template includes incremental refresh. For a large initial load,
+  consider **month-by-month XMLA bootstrapping** on a supported capacity / PPU workspace (see below).
+- **Direct Lake is an optional model rebuild on supported Fabric capacity**, not a PBIT setting
+  or the default deployment. It avoids importing Delta data, but still needs refresh/reframing
+  to update the model's view of that data; PPU alone does not provide Direct Lake.
+
+The shipped pipeline JSON has **no semantic-model refresh activity**. You can add a native Fabric
+**Semantic model refresh** activity with **on-success** dependencies after the audit processor
+**and all other enabled model-source branches**. Alternatively, use a **later, separate Power BI
+Service refresh schedule**; it is **not success-gated** on the pipeline.
 
 ---
 
@@ -43,21 +48,21 @@ avoid ever asking a single refresh to run longer than ~5 hours.
 ## Decision guide
 
 ```
-Is the model's workspace on Fabric (F SKU) / Premium (P SKU) / PPU capacity?
+Are you deliberately rebuilding the model as Direct Lake on supported Fabric capacity?
 │
-├─ YES ──► DIRECT LAKE  (no refresh, no 5-hour wall)
+├─ YES ──► DIRECT LAKE  (no import; refresh/reframing still applies)
 │           Keep Delta tables healthy (OPTIMIZE + V-Order) so it stays in
 │           Direct Lake mode instead of falling back to DirectQuery.
 │
-└─ NO (Pro / shared, or non-Fabric SQL backend) ──► IMPORT + INCREMENTAL REFRESH
-            Partition by month on CreationDate, then bootstrap month-by-month
-            over XMLA so no single refresh exceeds ~5 hours.
+└─ NO ───► KEEP SHIPPED IMPORT + INCREMENTAL REFRESH
+            For a large initial load, consider month-by-month XMLA bootstrap
+            on a supported capacity / PPU workspace with XMLA read-write enabled.
 ```
 
 | | **Direct Lake** | **Import + incremental refresh** |
 |---|---|---|
-| Capacity required | Fabric / Premium / PPU | Any (incl. Pro) |
-| Refresh job | **None** — reads Delta live | Yes, but only newest partition(s) after bootstrap |
+| Capacity required | Supported Fabric capacity (not PPU alone) | Any (incl. Pro; XMLA bootstrap requires supported capacity / PPU) |
+| Refresh job | Refresh/reframing, not an Import load | Yes; recent fact partitions plus full snapshot tables after bootstrap |
 | ~5-hour refresh wall | **Not applicable** | Avoided *after* a sliced bootstrap |
 | Large initial (4-month) load | **Instant** — data already in Lakehouse | Bootstrap month-by-month via XMLA |
 | Where it runs | **Fabric only** (Delta in OneLake) | Any SQL endpoint (Fabric, Synapse, Databricks, Azure SQL) |
@@ -65,7 +70,7 @@ Is the model's workspace on Fabric (F SKU) / Premium (P SKU) / PPU capacity?
 
 ---
 
-## Option A — Switch to Direct Lake (recommended on Fabric / Premium)
+## Option A — Rebuild as Direct Lake (optional, not the shipped path)
 
 The ingester already writes Delta tables to the Lakehouse, so there is nothing to import.
 
@@ -73,11 +78,12 @@ The ingester already writes Delta tables to the Lakehouse, so there is nothing t
    bound to Delta file layout.
 2. **Create / use a Direct Lake semantic model on the Lakehouse:** open the Lakehouse →
    **New semantic model** (or use its default model) and add the audit / usage / agents tables.
-3. **Repoint the report** to the Direct Lake model (keep the same table/column names so visuals and
-   measures keep working).
-4. **Retire the Import model's scheduled refresh** — that's the job hitting the 5-hour wall and
-   getting auto-disabled.
-5. New data appears on **reframe** after each ingester write; no scheduled refresh needed.
+3. **Recreate and validate the model contract** (tables, columns, relationships and measures),
+   then **repoint the report** to the Direct Lake model.
+4. **Retire the old Import model's refresh only after validating the replacement** and confirming
+   no reports still depend on it.
+5. Validate **refresh/reframing** after the processor and all other enabled model-source branches
+   complete; do not assume each ingester write makes the whole model current.
 
 **Per-SKU guardrails.** Direct Lake has capacity limits (max rows per table, memory for column
 segments). On a **Trial or smaller F SKU**, a very large *unpruned* fact table can exceed the limit
@@ -87,7 +93,7 @@ tight, and run OPTIMIZE + V-Order.
 
 ---
 
-## Option B — Import + incremental refresh (Pro / shared, or non-Fabric backend)
+## Option B — Keep Import + incremental refresh (shipped path, including Fabric)
 
 The policy itself is already configured in the template — see
 [`INCREMENTAL-REFRESH.md`](INCREMENTAL-REFRESH.md) for `RangeStart`/`RangeEnd`, window sizes, and how
@@ -98,8 +104,8 @@ without hitting the 5-hour wall**:
 
 A first full refresh would try to load all 4 months at once and time out. Instead, refresh **one
 month partition at a time** via the **XMLA endpoint / Enhanced Refresh API**, so each stays well
-under ~5 hours. After the bootstrap, the normal scheduled refresh only touches the current
-partition(s) → minutes, not hours.
+under ~5 hours. After the bootstrap, normal refresh re-imports the recent fact partitions
+and refreshes snapshot tables in full.
 
 **Enhanced Refresh REST API — refresh a single month partition:**
 ```http

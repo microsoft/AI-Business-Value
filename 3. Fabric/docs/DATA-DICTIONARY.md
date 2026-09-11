@@ -15,8 +15,9 @@ exact column names below (casing and spaces matter).
 
 > **Base (No-Studio) build.** This build reads three **core** sources plus a few standard **optional**
 > sources. Copilot Studio agent-transcript analytics (the `agent_*` Dataverse tables) and the PPAC
-> per-agent / per-user message-credit tables are **not** part of this build — they live in the separate
-> [Fabric + Copilot Studio](../extended/Fabric%20+%20Copilot%20Studio/) template.
+> per-agent / per-user message-credit tables are **not** part of this build — they live in the archived
+> [Fabric + Copilot Studio](../archive/extended/Fabric%20+%20Copilot%20Studio/) template,
+> kept as reference rather than a recommended active deployment.
 
 ---
 
@@ -41,7 +42,7 @@ template never breaks. See `OPTIONAL-SOURCES.md` for the `EmptyTable` + `try…o
 
 > **Cost consumption (row 6)** is the **Microsoft 365 Admin Center → Copilot → Cost management** export
 > (Cowork / Work IQ credits). It's standard across all templates. The **PPAC** message-credit tables
-> (per-agent / per-user) are a Studio add-on — see the Extended build.
+> (per-agent / per-user) are an archived Studio add-on — see the archived Extended reference above.
 
 All other model tables (Calendar, legends, ranking/summary, glossary, value maps, etc.) are
 **calculated/DAX or static** — they have no external source and are version-independent.
@@ -233,8 +234,11 @@ Last_Activity_Date    (date; parses ISO timestamp + en-US M/d/yyyy)
 SourceFile, LoadDate  (lineage)
 ```
 Columns absent from a given export load as null. Grain is a **per-user snapshot**. UPN match isn't 100% —
-unmatched users surface under an **"(Unattributed)"** organization bucket. See
-`../flows/COST-CONSUMPTION.md`.
+unmatched users surface under an **"(Unattributed)"** organization bucket. The core
+`Copilot_Cost_Consumption_Ingester` and model support remain **active**. The four `COST-CONSUMPTION`
+guides and cost flow JSON are now under `../archive/flows/`, kept as **archived reference**, not
+recommended active deployment instructions. See the
+[archived cost guide](../archive/flows/COST-CONSUMPTION.md).
 
 ---
 
