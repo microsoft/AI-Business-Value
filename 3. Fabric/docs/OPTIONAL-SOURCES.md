@@ -30,8 +30,14 @@ hasn't licensed/exported it, or to speed up refresh.
 > *Edit Parameters*), not boolean `true`/`false`.
 
 > **Studio add-ons.** Copilot Studio agent-transcript tables (`Enable_Dataverse`) and PPAC per-agent /
-> per-user message-credit tables (`Enable_Consumption`) belong to the separate
-> [Fabric + Copilot Studio](../extended/Fabric%20+%20Copilot%20Studio/) build, not this one.
+> per-user message-credit tables (`Enable_Consumption`) belong to the archived
+> [Fabric + Copilot Studio](../archive/extended/Fabric%20+%20Copilot%20Studio/) build, not this one.
+> It is reference material, not a recommended active deployment.
+
+> **Cost consumption remains active.** `Enable_CostConsumption` and the core
+> `Copilot_Cost_Consumption_Ingester` are unchanged. Only the four `COST-CONSUMPTION` guides and
+> cost flow JSON moved to [archived flow references](../archive/flows/); they are not recommended
+> active deployment instructions.
 
 ## 3. The per-table wrapper
 

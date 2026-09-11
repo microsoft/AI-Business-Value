@@ -5,8 +5,9 @@ on:
     paths:
       - '3. Fabric/pipelines/**'
       - '3. Fabric/notebooks/**'
-      - '3. Fabric/extended/**/notebooks/_core/**'
-      - '3. Fabric/extended/_shared/notebooks/**'
+      - '3. Fabric/archive/extended/**/notebooks/_core/**'
+      - '3. Fabric/archive/extended/_shared/notebooks/**'
+      - '3. Fabric/archive/flows/**'
       - '3. Fabric/*.pbit'
       - 'tests/**'
       - 'scripts/sync-shared.ps1'
@@ -15,8 +16,9 @@ on:
     paths:
       - '3. Fabric/pipelines/**'
       - '3. Fabric/notebooks/**'
-      - '3. Fabric/extended/**/notebooks/_core/**'
-      - '3. Fabric/extended/_shared/notebooks/**'
+      - '3. Fabric/archive/extended/**/notebooks/_core/**'
+      - '3. Fabric/archive/extended/_shared/notebooks/**'
+      - '3. Fabric/archive/flows/**'
       - '3. Fabric/*.pbit'
       - 'tests/**'
       - 'scripts/sync-shared.ps1'

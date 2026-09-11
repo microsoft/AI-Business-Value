@@ -4,9 +4,12 @@ The `ValueLens - Fabric.pbit` template ships with **incremental refresh already 
 audit-interactions fact table, so you don't have to set it up. This note explains what it does, what it
 needs, and how to change it.
 
+Both core PBITs ship in **Import** mode, not Direct Lake. The policy below describes the Fabric
+template; notebook ingestion and semantic-model refresh are separate operations.
+
 ## What's pre-configured
 
-The fact table **`Chat + Agent Interactions (Audit Logs)`** (sourced from `copilot_interactions_parsed`)
+The fact table **`Chat + Agent Interactions (Audit Logs)`** (sourced from `copilot_interactions_curated`)
 carries an Import-mode incremental-refresh policy:
 
 | Setting | Value | Effect |
@@ -23,15 +26,26 @@ partition at refresh time. Don't delete, rename, or hard-code them.
 
 - **The first refresh is a full load** of the whole 12-month window - expect it to take a while (tens of
   minutes on a large tenant). This is normal and happens once.
-- **Every scheduled refresh after that only appends the last ~7 days**, so it's much faster and stays
+- **Every refresh after that re-imports the last ~7 days of the fact table**, so it's much faster and stays
   roughly constant no matter how much history has accumulated.
 - The ~7-day incremental window overlaps your daily audit pull, so a missed or late run self-heals on the
   next refresh.
 
+## Refresh orchestration
+
+The shipped pipeline JSON has **no semantic-model refresh activity**. You can add a native Fabric
+**Semantic model refresh** activity with **on-success** dependencies after
+`Copilot_Audit_Log_Processor` **and all other enabled model-source branches**. Waiting for the
+processor alone is insufficient if another enabled branch is still writing a table the model reads.
+
+Alternatively, set a **later, separate Power BI Service refresh schedule**. This is
+**not success-gated** on the pipeline: it can run even if ingestion failed or is still running.
+
 ## Requirements
 
-- **A Premium, Premium-Per-User (PPU), or Fabric capacity workspace.** Incremental refresh does **not**
-  run on a shared / Pro workspace - publish to a capacity-backed workspace.
+- **Power BI Pro, Premium, Premium-Per-User (PPU), or Fabric capacity.** Import incremental refresh
+  is supported on Pro; XMLA read-write partition bootstrapping needs a supported capacity / PPU
+  workspace with XMLA read-write enabled.
 - **Import storage mode** (the template's default). See *Import + incremental vs Direct Lake* below.
 - Valid **data-source credentials** on the dataset (**Settings -> Data source credentials**). If they're
   missing you'll see *"Scheduled refresh is disabled because at least one data source does not have
@@ -54,17 +68,18 @@ Do this in Power BI Desktop **before** you publish (or re-publish after changing
 
 ## Import + incremental vs Direct Lake
 
-Both keep refreshes cheap; pick based on where your data lives:
+Import is the shipped path; Direct Lake is an optional, separately built model:
 
 | | Import + incremental refresh (default) | Direct Lake |
 |---|---|---|
 | Where it runs | Any SQL endpoint (Fabric, Databricks, Synapse, Azure SQL) | **Fabric only** - reads Delta straight from OneLake |
-| Data movement | Imports recent partitions on a schedule | No import - queries the Lakehouse live |
+| Data movement | Imports recent partitions during model refresh | No import - reads Delta; refresh/reframing updates the model's view of the data |
 | Best when | Non-Fabric backends, or you want a self-contained dataset | Model + Lakehouse are on the **same Fabric capacity** |
 | Setup | Already configured here | Recreate the model as Direct Lake over the Lakehouse |
 
-If your Lakehouse and dataset sit on the same Fabric capacity, Direct Lake is the fastest option (no
-import at all). Everywhere else, the shipped **Import + incremental refresh** is the right default.
+Keep the shipped **Import + incremental refresh** path unless you deliberately rebuild and validate
+a Direct Lake model on supported Fabric capacity. Publishing a PBIT to Fabric does not convert it
+to Direct Lake or remove its model-refresh requirement.
 
 ## Notes
 

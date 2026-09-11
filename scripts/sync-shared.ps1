@@ -1,15 +1,15 @@
 <#
 .SYNOPSIS
-Mirrors the seven core Fabric ingester notebooks from `3. Fabric/notebooks/`
-into every self-contained location under `3. Fabric/extended/`.
+Mirrors the eight shared Fabric notebooks from `3. Fabric/notebooks/`
+into every self-contained location under `3. Fabric/archive/extended/`.
 
 .DESCRIPTION
-The source of truth for the core ingesters is `3. Fabric/notebooks/`. To keep
-each `3. Fabric/extended/*` add-on downloadable-and-runnable in isolation, we
-duplicate those notebooks into:
+The source of truth for the shared notebooks is `3. Fabric/notebooks/`. To keep
+the archived add-on copies consistent with the core, we duplicate those
+notebooks into:
 
-  3. Fabric/extended/_shared/notebooks/                       (documentation copy)
-  3. Fabric/extended/Fabric + Copilot Studio/notebooks/_core/ (runnable copy)
+  3. Fabric/archive/extended/_shared/notebooks/
+  3. Fabric/archive/extended/Fabric + Copilot Studio/notebooks/_core/
 
 Run this after editing any file in `3. Fabric/notebooks/`.
 
@@ -34,8 +34,8 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 $source   = Join-Path $repoRoot '3. Fabric\notebooks'
 
 $destinations = @(
-    (Join-Path $repoRoot '3. Fabric/extended\_shared\notebooks'),
-    (Join-Path $repoRoot '3. Fabric/extended\Fabric + Copilot Studio\notebooks\_core')
+    (Join-Path $repoRoot '3. Fabric\archive\extended\_shared\notebooks'),
+    (Join-Path $repoRoot '3. Fabric\archive\extended\Fabric + Copilot Studio\notebooks\_core')
 )
 
 # Notebooks in $source that are NOT mirrored into the add-ons. The processor is

@@ -9,8 +9,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 CORE = ROOT / "3. Fabric" / "notebooks"
 MIRRORS = (
-    ROOT / "3. Fabric" / "extended" / "_shared" / "notebooks",
-    ROOT / "3. Fabric" / "extended" / "Fabric + Copilot Studio" / "notebooks" / "_core",
+    ROOT / "3. Fabric" / "archive" / "extended" / "_shared" / "notebooks",
+    ROOT / "3. Fabric" / "archive" / "extended" / "Fabric + Copilot Studio" / "notebooks" / "_core",
 )
 
 # SQL bytes remain pinned; OneLake pins the reviewed glossary correction while

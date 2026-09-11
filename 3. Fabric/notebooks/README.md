@@ -69,9 +69,10 @@ silently merged into an override. After changing the licensed-user snapshot, rer
 processor, then refresh Power BI. `ValueLens_Data_Check` shows stored flags only; it
 does not independently classify licences or verify service plans.
 
-The canonical notebooks here are synchronized to `extended/_shared/notebooks`
-and `extended/Fabric + Copilot Studio/notebooks/_core` using
-`scripts/sync-shared.ps1`. The processor is inherited, not mirrored.
+The canonical notebooks here are synchronized to `3. Fabric/archive/extended/_shared/notebooks`
+and `3. Fabric/archive/extended/Fabric + Copilot Studio/notebooks/_core` using
+[`scripts/sync-shared.ps1`](../../scripts/sync-shared.ps1). These archived reference
+mirrors remain maintained, not frozen. The processor is inherited, not mirrored.
 
 ## Recommended — Agent 365 governance
 
@@ -105,16 +106,17 @@ empty first placeholder.
 
 **Cowork / Work IQ** lands the **Microsoft 365 Admin Center** credit-consumption export
 into `Files/cost_consumption/`. See
-[`../flows/COST-CONSUMPTION.md`](../flows/COST-CONSUMPTION.md) for the automated landing flow.
+[the archived cost-consumption guide](../archive/flows/COST-CONSUMPTION.md) for historical
+landing-flow reference, not recommended active setup. The core ingester remains available here.
 
 ---
 
 ## Not in this folder
 
 - **Power Platform Admin Center (PPAC) credit consumption** and the **Copilot Studio**
-  transcript / registry notebooks now live with the fuller template in
-  [`../../3. Fabric/extended/Fabric + Copilot Studio/`](../extended/Fabric%20+%20Copilot%20Studio/README.md).
-  Add them only if you deploy that *Fabric + Copilot Studio* build.
+  transcript / registry notebooks are retained with the
+  [archived Fabric + Copilot Studio template](../archive/extended/Fabric%20+%20Copilot%20Studio/README.md).
+  They are archived reference, not a recommended active deployment.
 
 ---
 

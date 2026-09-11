@@ -1,8 +1,12 @@
-# Copilot Credit Consumption — Automated Landing Flows (Studio build)
+# ARCHIVED — Copilot Credit Consumption landing flows (Studio build)
+
+> **ARCHIVED / reference only — not recommended for new deployments.** Historical configuration
+> instructions are retained below. The active [`3. Fabric`](../../../../README.md) build and
+> [ProductFeedback flow](../../../../flows/Copilot_ProductFeedback_Email_to_OneLake.json) remain active.
 
 > **Part of the *Fabric + Copilot Studio* build.** These flows land the **Power Platform Admin
 > Center (PPAC)** message-consumption export that feeds the Studio-exclusive **Credits Consumed**
-> page. The leaner *No Studio* template ([`3. Fabric/`](../../../README.md)) does **not**
+> page. The leaner *No Studio* template ([`3. Fabric/`](../../../../README.md)) does **not**
 > use them. For the setup walkthrough see [`../CREDIT-CONSUMPTION-SETUP.md`](../CREDIT-CONSUMPTION-SETUP.md).
 
 These two Power Automate flows remove the **manual export → save** step for the Power Platform
@@ -28,8 +32,9 @@ Both write to OneLake with the **DFS (ADLS Gen2) three-step pattern**: `PUT ?res
 > **PPAC vs MAC — don't confuse the two credit exports.** This is the **per-agent Copilot Studio
 > *message* credit** export from the **Power Platform Admin Center** (`credit_consumption_*` tables →
 > `Enable_Consumption`). The **per-user Cowork / Work IQ *surface* credit** export from the **M365
-> Admin Center** is a *different* source that stays in every build —
-> see [`3. Fabric/flows/COST-CONSUMPTION.md`](../../../flows/COST-CONSUMPTION.md)
+> Admin Center** is a *different* source whose core ingester remains active; its landing flows
+> and guides are now archived —
+> see [`3. Fabric/archive/flows/COST-CONSUMPTION.md`](../../../flows/COST-CONSUMPTION.md)
 > (`copilot_cost_consumption` → `Enable_CostConsumption`).
 
 ## Import & configure
@@ -81,4 +86,4 @@ the transcript-native `Total Cost Units` (displayedCost) view keeps working rega
 The same `PUT → append → flush` landing mechanism works for **any** export-only Microsoft report —
 only the **trigger filter** and **target folder** change. The *No Studio* template documents the
 generalised pattern (and the product-feedback example that ships in every build) in
-[`3. Fabric/flows/README.md`](../../../flows/README.md#generalising-to-other-export-only-sources).
+[`3. Fabric/flows/README.md`](../../../../flows/README.md#generalising-to-other-export-only-sources).

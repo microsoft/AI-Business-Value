@@ -1,4 +1,9 @@
-# Cost Consumption (M365 Admin Center) — simple setup guide
+# ARCHIVED — Cost Consumption (M365 Admin Center) setup reference
+
+> **ARCHIVED / reference only — these landing flows are not recommended for new deployments.**
+> Historical instructions are retained below. The [core ingester](../../notebooks/Copilot_Cost_Consumption_Ingester.ipynb)
+> and [base Fabric build](../../README.md) remain active, as does the
+> [ProductFeedback flow](../../flows/Copilot_ProductFeedback_Email_to_OneLake.json).
 
 **Who this is for:** anyone lighting up the **first Consumption page** on the dashboard — the one
 that shows per-user **Cowork / WorkIQ / Other** credit split and monthly credit usage against the
@@ -12,7 +17,7 @@ per-user cap. **No coding required for the basic path.**
 > Copilot → Cost management → Consumption** export (per-user Cowork / WorkIQ / Other credits and
 > monthly cap utilisation). A separate export — the **Power Platform Admin Center** MCS Messages
 > reports (per-agent Copilot Studio *message* credits) — powers the *Credits Consumed* page and is
-> documented in [`../../3. Fabric/extended/Fabric + Copilot Studio/CREDIT-CONSUMPTION-SETUP.md`](../extended/Fabric%20+%20Copilot%20Studio/CREDIT-CONSUMPTION-SETUP.md).
+> documented in the [archived Copilot Studio credit guide](../extended/Fabric%20+%20Copilot%20Studio/CREDIT-CONSUMPTION-SETUP.md).
 > Different portal, different grain — they answer different questions and are additive, not
 > alternatives.
 
@@ -81,7 +86,7 @@ That's it — no code. The folder should now contain your MAC export.
 ### Option B — Automate it with a Power Automate flow (hands-off)
 
 If you'd rather not upload by hand each month, import one of the ready-made flows in
-[`../flows/`](./) so the file lands automatically:
+[`3. Fabric/archive/flows/`](./) so the file lands automatically:
 
 - **`Copilot_CostConsumption_Email_to_OneLake.json`** — watches an inbox; when an email with the
   consumption CSV arrives (e.g. a scheduled MAC export or a colleague forwarding the download), it
@@ -91,7 +96,8 @@ If you'd rather not upload by hand each month, import one of the ready-made flow
   SharePoint document library instead of email.
 
 Both flows use the standard OneLake DFS three-step upload pattern and share the same setup +
-permissions as the credit-consumption flows — see [`README.md`](README.md) in this folder.
+permissions as the credit-consumption flows — see the
+[archived credit-consumption flow README](../extended/Fabric%20+%20Copilot%20Studio/flows/README.md).
 
 ---
 
@@ -99,7 +105,7 @@ permissions as the credit-consumption flows — see [`README.md`](README.md) in 
 
 This turns the CSV into one tidy table the dashboard can read.
 
-1. In your Fabric workspace, import **`../notebooks/Copilot_Cost_Consumption_Ingester.ipynb`**
+1. In your Fabric workspace, import **`../../notebooks/Copilot_Cost_Consumption_Ingester.ipynb`**
    (**+ New → Import notebook**) — *or* open it if it's already there.
 2. Attach it to the **`<your-lakehouse>`** lakehouse and **pin it as default** (📌).
 3. Click **Run all**. It finishes in well under a minute.
@@ -112,7 +118,7 @@ When it's done you'll have one new table in the lakehouse: **`copilot_cost_consu
 
 ## Step 4 — Switch the Consumption page on in Power BI
 
-1. Open the dashboard (`ValueLens - Fabric.pbit` or your live `.pbip`) in **Power BI Desktop**.
+1. Open the dashboard ([`../../ValueLens - Fabric.pbit`](../../ValueLens%20-%20Fabric.pbit) or your live `.pbip`) in **Power BI Desktop**.
 2. **Home → Transform data → Edit parameters** and set **`Enable_CostConsumption`** to **`Include`**.
 3. Make sure the **Fabric SQL Endpoint** and **Lakehouse** parameters point at your
    `<your-lakehouse>` lakehouse.
@@ -172,8 +178,8 @@ The ingester and column contract are stable regardless of where MAC hides the ex
 
 ---
 
-*Related: [`flows/README.md`](README.md) (automated landing) ·
+*Related: [archived credit-consumption flow README](../extended/Fabric%20+%20Copilot%20Studio/flows/README.md) (shared landing setup) ·
 [`COST-CONSUMPTION.md`](COST-CONSUMPTION.md) (column contract + model wiring) ·
-[`../docs/OPTIONAL-SOURCES.md`](../docs/OPTIONAL-SOURCES.md) (how optional sources stay "green"
-when absent) · [`../docs/DATA-DICTIONARY.md`](../docs/DATA-DICTIONARY.md) (column reference) ·
-[`../../3. Fabric/extended/Fabric + Copilot Studio/CREDIT-CONSUMPTION-SETUP.md`](../extended/Fabric%20+%20Copilot%20Studio/CREDIT-CONSUMPTION-SETUP.md) (the different, PPAC-side credit guide).*
+[`3. Fabric/docs/OPTIONAL-SOURCES.md`](../../docs/OPTIONAL-SOURCES.md) (how optional sources stay "green"
+when absent) · [`3. Fabric/docs/DATA-DICTIONARY.md`](../../docs/DATA-DICTIONARY.md) (column reference) ·
+[archived Copilot Studio credit guide](../extended/Fabric%20+%20Copilot%20Studio/CREDIT-CONSUMPTION-SETUP.md) (the different, PPAC-side credit guide).*

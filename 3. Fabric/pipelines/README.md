@@ -33,7 +33,20 @@ Scheduled orchestration for the Direct Ingester notebooks and the downstream Aud
 
 5. **Schedule it**: pipeline editor → **Schedule** at top → e.g. weekly Sunday 02:00. Activities run on the same cadence.
 
-6. **Refresh the semantic model only after pipeline success.** This repository does **not** include a semantic-model refresh activity in the pipeline JSON. If you add one, make it wait for the processor and all other enabled model sources to succeed; a fixed-time refresh alone does not guarantee ingestion and processing have finished.
+6. **Refresh the semantic model only after pipeline success**, using the steps below. The supplied pipeline JSON updates the Lakehouse only; it does **not** refresh the published Power BI Import model.
+
+### Refresh Power BI from the pipeline
+
+1. Publish the configured report/model and configure its OneLake or SQL source credentials in the semantic model's settings.
+2. In the pipeline, add **Activities → Semantic model refresh**. Select a **Power BI connection**, the published **Workspace**, and **Dataset/semantic model**.
+3. Add **On success** dependencies from `Run_Audit_Log_Processor` **and every other branch supplying the model**, including the outer organisation-data and enabled optional-source conditionals. Waiting for the processor alone does not wait for those independent branches.
+4. Leave **Wait on completion** enabled, save, run once, then schedule the pipeline. No separate Power BI Service refresh schedule is needed; avoid overlapping schedules.
+
+**Order:** ingestion → processing + all required sources succeed → semantic-model refresh.
+The activity defaults to a **full refresh**; configure table/partition scope deliberately if needed.
+See [Microsoft's activity setup and capacity/permission prerequisites](https://learn.microsoft.com/en-us/fabric/data-factory/semantic-model-refresh-activity).
+
+Alternatively, use **Power BI Service → semantic model → Settings → Refresh**. A later fixed-time schedule is **not success-gated** and can start before the pipeline finishes.
 
 **Existing deployments:** import the processor notebook, add `Run_Audit_Log_Processor` from the updated JSON (including its `dependsOn` entries), and replace its notebook/workspace placeholders with your IDs. Preserve your existing activity IDs and parameter settings. Updating this repository does not automatically update a manually imported Fabric pipeline.
 
@@ -85,7 +98,7 @@ To switch one on: set its parameter to `true` **and** replace its notebook GUID 
 | Toggle | Activity | Notebook | Notebook-ID placeholder | Notes |
 |---|---|---|---|---|
 | `EnableDataverse` | `Conditionally_Run_Dataverse_Transcripts` | `Copilot_Agent_Transcript_Parser.ipynb` | `REPLACE_WITH_TRANSCRIPT_PARSER_NOTEBOOK_ID` | Live Dataverse pull. Needs the app reg as a Dataverse **Application User** (see [`../docs/PERMISSIONS.md`](../docs/PERMISSIONS.md)). |
-| `EnableConsumption` | `Conditionally_Run_Credit_Consumption` | `Copilot_Credit_Consumption_Ingester.ipynb` | `REPLACE_WITH_CREDIT_CONSUMPTION_NOTEBOOK_ID` | **PPAC credit build — now a [Fabric + Copilot Studio](../extended/Fabric%20+%20Copilot%20Studio/) add-on**, kept here transitionally. Land the 3 CSVs in `Files/credit_consumption/` first (see [`CREDIT-CONSUMPTION-SETUP.md`](../extended/Fabric%20+%20Copilot%20Studio/CREDIT-CONSUMPTION-SETUP.md)). |
+| `EnableConsumption` | `Conditionally_Run_Credit_Consumption` | `Copilot_Credit_Consumption_Ingester.ipynb` | `REPLACE_WITH_CREDIT_CONSUMPTION_NOTEBOOK_ID` | **Archived [Fabric + Copilot Studio reference](../archive/extended/Fabric%20+%20Copilot%20Studio/)**; the existing branch remains for compatibility. For existing deployments, see the [archived credit setup](../archive/extended/Fabric%20+%20Copilot%20Studio/CREDIT-CONSUMPTION-SETUP.md). |
 | `EnableProductFeedback` | `Conditionally_Run_Product_Feedback` | `Copilot_ProductFeedback_Ingester.ipynb` | `REPLACE_WITH_PRODUCT_FEEDBACK_NOTEBOOK_ID` | **Export-only.** Land the CSV in `Files/product_feedback/` first (manually or via a [flow](../flows/)). |
 | `EnableAgent365` | `Conditionally_Run_Agent365` | `Copilot_Agent365_Lander.ipynb` | `REPLACE_WITH_AGENT365_NOTEBOOK_ID` | Shipped default. Reads an exported agent registry CSV from `Files/agent365/agents.csv`. Swap to `Copilot_Agent365_Registry_Ingester.ipynb` only if you deliberately adopt the Graph app-only path. |
 

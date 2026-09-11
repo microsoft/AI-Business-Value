@@ -1,4 +1,8 @@
-# Credit Consumption (billing) — simple setup guide
+# ARCHIVED — Credit Consumption (billing) setup reference
+
+> **ARCHIVED / reference only — not a recommended active add-on.** The historical instructions
+> below apply to the archived Copilot Studio build. For new deployments, start with
+> the active [`3. Fabric`](../../../README.md) build.
 
 **Who this is for:** anyone setting up the **optional** "Copilot Studio credit consumption"
 billing pages on the Fabric version of the dashboard. **No coding required for the basic path.**
@@ -11,7 +15,8 @@ billing pages on the Fabric version of the dashboard. **No coding required for t
 > consumption** — the Power Platform Admin Center `MCSMessages` exports (per-agent / per-user /
 > per-environment **message** credits). A separate, newer source — the **Microsoft 365 Admin Center →
 > Copilot → Cost management → Consumption** export — breaks credits down by **Cowork / WorkIQ / Other**
-> surface and is documented separately. Different portals, different grain.
+> surface and is documented in the [archived cost-consumption reference](../../flows/COST-CONSUMPTION.md).
+> Different portals, different grain.
 
 ---
 
@@ -94,7 +99,7 @@ When it's done you'll have three new tables in the lakehouse:
 
 ## Step 4 — Switch the billing pages on in Power BI
 
-1. Open the dashboard (`…1905 Extra - Fabric.pbip` / the published `.pbit`) in **Power BI Desktop**.
+1. Open the archived dashboard, [`ValueLens - Fabric (+ Studio Agent Deepdive).pbit`](ValueLens%20-%20Fabric%20%28+%20Studio%20Agent%20Deepdive%29.pbit), in **Power BI Desktop**.
 2. **Home → Transform data → Edit parameters** and set **`Enable_Consumption`** to **`Include`**.
 3. Make sure the **Fabric SQL Endpoint** and **Lakehouse** parameters point at your
    `<your-lakehouse>` lakehouse.
@@ -133,6 +138,6 @@ export covers (read straight from the data).
 ---
 
 *Related: [`flows/README.md`](flows/README.md) (automated landing) ·
-[`OPTIONAL-SOURCES.md`](../../docs/OPTIONAL-SOURCES.md) (how optional sources stay
-"green" when absent) · [`DATA-DICTIONARY.md`](../../docs/DATA-DICTIONARY.md)
+[`OPTIONAL-SOURCES.md`](../../../docs/OPTIONAL-SOURCES.md) (how optional sources stay
+"green" when absent) · [`DATA-DICTIONARY.md`](../../../docs/DATA-DICTIONARY.md)
 (column reference).*
